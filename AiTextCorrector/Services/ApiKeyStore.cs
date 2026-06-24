@@ -26,6 +26,12 @@ public class ApiKeyStore
 
     public string? GetAnthropicKey() => Resolve(AnthropicEnvVar, AnthropicValueName);
 
+    /// <summary>Lit la clé OpenAI uniquement depuis le registre (ignore la variable d'env).</summary>
+    public string? GetOpenAiKeyFromRegistry() => ReadRegistry(OpenAiValueName);
+
+    /// <summary>Lit la clé Anthropic uniquement depuis le registre (ignore la variable d'env).</summary>
+    public string? GetAnthropicKeyFromRegistry() => ReadRegistry(AnthropicValueName);
+
     public void SetOpenAiKey(string? key) => Write(OpenAiValueName, key);
 
     public void SetAnthropicKey(string? key) => Write(AnthropicValueName, key);
@@ -44,6 +50,11 @@ public class ApiKeyStore
             return fromEnv;
         }
 
+        return ReadRegistry(valueName);
+    }
+
+    private static string? ReadRegistry(string valueName)
+    {
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(KeyPath, writable: false);

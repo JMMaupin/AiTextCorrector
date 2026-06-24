@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="Configurer le raccourci"
+        Icon="pack://application:,,,/Resources/AICorrector.ico"
         Width="470"
         Height="300"
         ResizeMode="NoResize"
@@ -24,16 +25,19 @@
             <ui:TextBlock Text="Clique dans le champ ci-dessous, puis appuie sur la combinaison souhaitée (au moins un modificateur — Ctrl, Shift, Alt ou Win — plus une touche)."
                           Appearance="Secondary" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
-            <ui:TextBox Name="CaptureBox" IsReadOnly="True" FontSize="16"
-                        PlaceholderText="Clique ici puis appuie sur les touches…"
-                        PreviewKeyDown="CaptureBox_PreviewKeyDown"/>
+            <Border Name="CaptureBorder" BorderThickness="2" BorderBrush="Transparent" CornerRadius="6">
+                <ui:TextBox Name="CaptureBox" IsReadOnly="True" FontSize="16"
+                            PlaceholderText="Clique ici puis appuie sur les touches…"
+                            PreviewKeyDown="CaptureBox_PreviewKeyDown"/>
+            </Border>
 
-            <ui:TextBlock Name="ErrorTextBlock" Foreground="#EF4444" TextWrapping="Wrap"
-                          Visibility="Collapsed" Margin="0,8,0,0"/>
+            <Border Name="StatusBorder" CornerRadius="6" Padding="10,6" Margin="0,10,0,0" Visibility="Collapsed">
+                <ui:TextBlock Name="StatusTextBlock" TextWrapping="Wrap" FontWeight="SemiBold"/>
+            </Border>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
                 <ui:Button Content="Annuler" MinWidth="100" Margin="0,0,8,0" Click="Cancel_Click"/>
-                <ui:Button Name="SaveButton" Content="Enregistrer" Appearance="Primary" MinWidth="120" Click="Save_Click"/>
+                <ui:Button Name="SaveButton" Content="Enregistrer" Appearance="Primary" MinWidth="120" IsEnabled="False" Click="Save_Click"/>
             </StackPanel>
         </StackPanel>
     </Grid>

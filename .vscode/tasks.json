@@ -18,15 +18,14 @@
             }
         },
         {
-            "label": "publish",
+            "label": "publish-portable",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "publish",
                 "${workspaceFolder}/AiTextCorrector/AiTextCorrector.csproj",
                 "-c", "Release",
-                "-r", "win-x64",
-                "--self-contained", "false",
+                "/property:PublishProfile=Portable",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],

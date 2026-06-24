@@ -1,8 +1,8 @@
-# AI Text Corrector V3
+# AI Text Corrector V1
 
 Application Windows WPF (.NET 8) avec support multi-provider OpenAI + Anthropic/Claude pour corriger un texte saisi ou collé, puis l'envoyer en texte brut au presse-papiers.
 
-## Nouveautés V3
+## Nouveautés V1
 
 - Support OpenAI et Anthropic/Claude
 - Sélection du provider dans l'interface
@@ -24,7 +24,7 @@ code .
 
 ## Ouvrir dans Visual Studio
 
-Ouvre `AiTextCorrectorV3.sln`.
+Ouvre `AiTextCorrector.sln`.
 
 ## Prérequis
 
@@ -82,6 +82,22 @@ dotnet run
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained false
 ```
+
+## Générer l'exe portable
+
+Produit un unique `.exe` léger (framework-dependent) via le profil `Portable` :
+
+```bash
+dotnet publish -c Release /p:PublishProfile=Portable
+```
+
+L'exe est généré dans `bin/Publish/Portable/AiTextCorrector.exe`.
+
+- Nécessite le **.NET 8 Desktop Runtime** sur le PC cible.
+- Si le runtime est absent, l'exe affiche automatiquement une boîte de dialogue
+  Windows invitant à l'installer.
+- Le seul `.exe` suffit à distribuer l'application (le fichier `appsettings.json`
+  est recréé au premier lancement et les clés API sont stockées dans le registre).
 
 ## Flux d'utilisation
 

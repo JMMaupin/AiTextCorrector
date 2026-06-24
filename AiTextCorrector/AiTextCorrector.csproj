@@ -6,6 +6,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Icône gravée dans le fichier .exe (Explorateur, barre des tâches, Alt+Tab). -->
+    <ApplicationIcon>Resources\AICorrector.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,9 +31,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Resources\app.ico" />
-    <None Update="Resources\app.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <!-- Embarquée comme ressource (chargée via pack URI) : pas besoin de la copier
+         sur le disque, ce qui fonctionne aussi en publication single-file. -->
+    <Resource Include="Resources\AICorrector.ico" />
   </ItemGroup>
 </Project>

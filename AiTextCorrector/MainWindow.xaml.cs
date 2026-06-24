@@ -40,56 +40,20 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         Closing += MainWindow_Closing;
         StateChanged += MainWindow_StateChanged;
         InitializeProviderSelection();
-        InitializeApiKeyFields();
     }
 
-    private void InitializeApiKeyFields()
+    private void ApiButton_Click(object sender, RoutedEventArgs e)
     {
-        // Affiche les clés déjà enregistrées. Si une clé vient d'une variable
-        // d'environnement, le champ est verrouillé (la variable est prioritaire).
-        OpenAiKeyBox.Password = _keyStore.GetOpenAiKey() ?? string.Empty;
-        AnthropicKeyBox.Password = _keyStore.GetAnthropicKey() ?? string.Empty;
-
-        if (_keyStore.OpenAiFromEnvironment)
+        var dialog = new ApiKeysWindow(_keyStore) { Owner = this };
+        if (dialog.ShowDialog() == true)
         {
-            OpenAiKeyBox.IsEnabled = false;
-            OpenAiKeyBox.ToolTip = "Définie par la variable d'environnement OPENAI_API_KEY (prioritaire).";
+            StatusTextBlock.Text = "Clés API enregistrées dans le registre utilisateur.";
         }
-
-        if (_keyStore.AnthropicFromEnvironment)
-        {
-            AnthropicKeyBox.IsEnabled = false;
-            AnthropicKeyBox.ToolTip = "Définie par la variable d'environnement AITEXTCORRECTOR_ANTHROPIC_API_KEY (prioritaire).";
-        }
-    }
-
-    private void SaveApiKeysButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (!_keyStore.OpenAiFromEnvironment)
-        {
-            _keyStore.SetOpenAiKey(OpenAiKeyBox.Password);
-        }
-
-        if (!_keyStore.AnthropicFromEnvironment)
-        {
-            _keyStore.SetAnthropicKey(AnthropicKeyBox.Password);
-        }
-
-        StatusTextBlock.Text = "Clés API enregistrées dans le registre utilisateur.";
     }
 
     private void InitializeProviderSelection()
     {
         ProviderComboBox.SelectedIndex = string.Equals(_config.Provider, "Anthropic", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-        UpdateProviderHint();
-
-    }
-
-    private void UpdateProviderHint()
-    {
-        ProviderHintTextBlock.Text = string.Equals(_config.Provider, "Anthropic", StringComparison.OrdinalIgnoreCase)
-            ? "Provider Anthropic sélectionné. Renseigne la clé Claude ci-dessous (ou via AITEXTCORRECTOR_ANTHROPIC_API_KEY)."
-            : "Provider OpenAI sélectionné. Renseigne la clé OpenAI ci-dessous (ou via OPENAI_API_KEY).";
     }
 
     private Forms.NotifyIcon CreateNotifyIcon()
@@ -126,17 +90,24 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private static System.Drawing.Icon LoadTrayIcon()
     {
-        var path = System.IO.Path.Combine(AppContext.BaseDirectory, "Resources", "app.ico");
         try
         {
-            if (System.IO.File.Exists(path))
+            // On charge l'icône depuis la ressource embarquée (pack URI) plutôt que
+            // depuis un fichier sur le disque : ça fonctionne aussi en publication
+            // single-file, où il n'y a pas de dossier Resources/ à côté de l'exe.
+            var uri = new Uri("pack://application:,,,/Resources/AICorrector.ico", UriKind.Absolute);
+            var stream = Application.GetResourceStream(uri)?.Stream;
+            if (stream is not null)
             {
-                return new System.Drawing.Icon(path);
+                using (stream)
+                {
+                    return new System.Drawing.Icon(stream);
+                }
             }
         }
         catch
         {
-            // Fichier d'icône manquant ou invalide : on retombe sur l'icône système.
+            // Ressource d'icône manquante ou invalide : on retombe sur l'icône système.
         }
 
         return System.Drawing.SystemIcons.Application;
@@ -152,8 +123,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             StatusTextBlock.Text = $"Impossible d'enregistrer le raccourci ({_config.Hotkey.Describe()}) — déjà utilisé ? Change-le via « Raccourci… ».";
         }
-
-        UpdateShortcutHint();
     }
 
     private static (uint Modifiers, uint VirtualKey) ToWin32(HotkeyConfig hk)
@@ -194,7 +163,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             _config.Hotkey = hk;
             _configService.Save(_config);
-            UpdateShortcutHint();
             StatusTextBlock.Text = $"Raccourci défini : {hk.Describe()}.";
             return true;
         }
@@ -202,11 +170,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         // Échec : on restaure l'ancien raccourci.
         RegisterHotkey(handle, _config.Hotkey);
         return false;
-    }
-
-    private void UpdateShortcutHint()
-    {
-        SubtitleTextBlock.Text = $"OpenAI + Anthropic/Claude. {_config.Hotkey.Describe()} pour ouvrir. Tu peux taper ou coller ton texte dans la fenêtre.";
     }
 
     private void HotkeyButton_Click(object sender, RoutedEventArgs e)
@@ -437,7 +400,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var selected = (ProviderComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "OpenAI";
         _config.Provider = selected;
         _configService.Save(_config);
-        UpdateProviderHint();
-        StatusTextBlock.Text = $"Provider actif: {selected}.";
+        StatusTextBlock.Text = $"Provider actif : {selected}.";
     }
 }
