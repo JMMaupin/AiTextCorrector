@@ -1,0 +1,13 @@
+# Secrets — ne jamais versionner les clés API
+appsettings.json
+**/appsettings.json
+**/antropic.txt
+
+# Build output
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo

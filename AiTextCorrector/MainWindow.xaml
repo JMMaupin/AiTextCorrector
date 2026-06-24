@@ -1,0 +1,111 @@
+<ui:FluentWindow x:Class="AiTextCorrector.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="AI Text Corrector V3"
+        Height="650"
+        Width="1100"
+        WindowStartupLocation="CenterScreen"
+        Topmost="True"
+        ResizeMode="CanResizeWithGrip"
+        MinHeight="560"
+        MinWidth="800"
+        ExtendsContentIntoTitleBar="True"
+        WindowBackdropType="Mica"
+        WindowCornerPreference="Round"
+        ShowInTaskbar="False">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="AI Text Corrector V3"/>
+
+        <Grid Grid.Row="1" Margin="16,8,16,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Orientation="Vertical" Margin="0,0,0,12">
+                <ui:TextBlock Text="AI Text Corrector" FontTypography="Title"/>
+                <ui:TextBlock Name="SubtitleTextBlock" Text="OpenAI + Anthropic/Claude. Ctrl+Shift+Space pour ouvrir. Tu peux taper ou coller ton texte dans la fenêtre."
+                              Appearance="Secondary" Margin="0,4,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <ui:Card Grid.Row="1" Padding="12" Margin="0,0,0,12">
+                <StackPanel Orientation="Vertical">
+                    <WrapPanel>
+                        <ui:TextBlock Text="Provider:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox Name="ProviderComboBox" Width="160" Margin="0,0,18,0" VerticalAlignment="Center" SelectionChanged="ProviderComboBox_SelectionChanged">
+                            <ComboBoxItem Content="OpenAI"/>
+                            <ComboBoxItem Content="Anthropic"/>
+                        </ComboBox>
+                        <CheckBox Name="AutoCopyCheckBox" Content="Copie auto après correction" IsChecked="True" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                        <CheckBox Name="AsciiOnlyCheckBox" Content="Mode ASCII simple" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                        <CheckBox Name="AutoPasteBackCheckBox" Content="Recoller automatiquement" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                        <ui:Button Name="HotkeyButton" Content="Raccourci…" Icon="{ui:SymbolIcon Keyboard24}" VerticalAlignment="Center" Click="HotkeyButton_Click"/>
+                    </WrapPanel>
+
+                    <WrapPanel Margin="0,12,0,0">
+                        <ui:TextBlock Text="Clé OpenAI:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <PasswordBox Name="OpenAiKeyBox" Width="230" Margin="0,0,18,0" VerticalAlignment="Center"
+                                     ToolTip="Clé API OpenAI (stockée dans le registre utilisateur)"/>
+                        <ui:TextBlock Text="Clé Claude:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <PasswordBox Name="AnthropicKeyBox" Width="230" Margin="0,0,18,0" VerticalAlignment="Center"
+                                     ToolTip="Clé API Anthropic/Claude (stockée dans le registre utilisateur)"/>
+                        <ui:Button Name="SaveApiKeysButton" Content="Enregistrer les clés" Icon="{ui:SymbolIcon Save24}" VerticalAlignment="Center" Click="SaveApiKeysButton_Click"/>
+                    </WrapPanel>
+                </StackPanel>
+            </ui:Card>
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <GroupBox Header="Texte source" Padding="8" Margin="0,0,6,0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                            <ui:Button Name="PasteClipboardButton" Content="Coller depuis le presse-papiers" MinWidth="220" Margin="0,0,8,0" Click="PasteClipboardButton_Click"/>
+                            <ui:Button Name="ClearInputButton" Content="Vider" MinWidth="90" Click="ClearInputButton_Click"/>
+                        </StackPanel>
+                        <ui:TextBox Name="InputTextBox" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                    TextWrapping="Wrap" FontSize="14" PlaceholderText="Tape ou colle ton texte ici" ToolTip="Tape ou colle ton texte ici"/>
+                    </DockPanel>
+                </GroupBox>
+
+                <GroupBox Grid.Column="1" Header="Texte corrigé" Padding="8" Margin="6,0,0,0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                            <ui:Button Name="CopyResultButton" Content="Copier le résultat" MinWidth="150" Margin="0,0,8,0" Click="CopyResultButton_Click"/>
+                            <ui:Button Name="PasteBackButton" Content="Recoller dans l'app" MinWidth="150" Margin="0,0,8,0" Click="PasteBackButton_Click"/>
+                            <ui:Button Name="ClearOutputButton" Content="Vider" MinWidth="90" Click="ClearOutputButton_Click"/>
+                        </StackPanel>
+                        <ui:TextBox Name="OutputTextBox" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                    TextWrapping="Wrap" FontSize="14" PlaceholderText="Le texte corrigé apparaîtra ici"/>
+                    </DockPanel>
+                </GroupBox>
+            </Grid>
+
+            <DockPanel Grid.Row="3" Margin="0,12,0,0">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                    <ui:Button Name="StrictCorrectionButton" Content="Correction stricte" Appearance="Primary" MinWidth="150" Margin="0,0,8,0" Click="StrictCorrectionButton_Click"/>
+                    <ui:Button Name="RewriteLightButton" Content="Correction + reformulation" Appearance="Primary" MinWidth="210" Margin="0,0,8,0" Click="RewriteLightButton_Click"/>
+                    <ui:Button Name="ProfessionalButton" Content="Version pro" Appearance="Primary" MinWidth="120" Margin="0,0,8,0" Click="ProfessionalButton_Click"/>
+                    <ui:Button Name="CustomButton" Content="Prompt perso" Appearance="Primary" MinWidth="120" Click="CustomButton_Click"/>
+                </StackPanel>
+                <StackPanel Orientation="Vertical" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                    <ui:TextBlock Name="StatusTextBlock" Text="Prêt" HorizontalAlignment="Right"/>
+                    <ui:TextBlock Name="ProviderHintTextBlock"
+                                  Text="Configure OPENAI_API_KEY ou AITEXTCORRECTOR_ANTHROPIC_API_KEY selon le provider sélectionné"
+                                  Appearance="Secondary" FontSize="11" HorizontalAlignment="Right"/>
+                </StackPanel>
+            </DockPanel>
+        </Grid>
+    </Grid>
+</ui:FluentWindow>
