@@ -34,10 +34,7 @@
             <ui:Card Grid.Row="0" Padding="12" Margin="0,0,0,12">
                 <WrapPanel>
                     <ui:TextBlock Text="Provider:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox Name="ProviderComboBox" Width="160" Margin="0,0,18,0" VerticalAlignment="Center" SelectionChanged="ProviderComboBox_SelectionChanged">
-                        <ComboBoxItem Content="OpenAI"/>
-                        <ComboBoxItem Content="Anthropic"/>
-                    </ComboBox>
+                    <ComboBox Name="ProviderComboBox" Width="160" Margin="0,0,18,0" VerticalAlignment="Center" SelectionChanged="ProviderComboBox_SelectionChanged"/>
                     <CheckBox Name="AutoCopyCheckBox" Content="Copie auto après correction" IsChecked="True" Margin="0,0,20,0" VerticalAlignment="Center"/>
                     <CheckBox Name="AsciiOnlyCheckBox" Content="Mode ASCII simple" Margin="0,0,20,0" VerticalAlignment="Center"/>
                     <CheckBox Name="AutoPasteBackCheckBox" Content="Recoller automatiquement" Margin="0,0,20,0" VerticalAlignment="Center"/>

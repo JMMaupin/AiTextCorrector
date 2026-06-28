@@ -11,8 +11,12 @@ public partial class ApiKeysWindow : Wpf.Ui.Controls.FluentWindow
     // qu'une fois au premier focus, et à protéger contre un effacement accidentel.
     private bool _openAiHadKey;
     private bool _anthropicHadKey;
+    private bool _glmHadKey;
+    private bool _groqHadKey;
     private bool _openAiCleared;
     private bool _anthropicCleared;
+    private bool _glmCleared;
+    private bool _groqCleared;
 
     public ApiKeysWindow(ApiKeyStore keyStore)
     {
@@ -24,9 +28,13 @@ public partial class ApiKeysWindow : Wpf.Ui.Controls.FluentWindow
         // celle-ci, et le champ édite bien la clé du registre).
         OpenAiKeyBox.Password = _keyStore.GetOpenAiKeyFromRegistry() ?? string.Empty;
         AnthropicKeyBox.Password = _keyStore.GetAnthropicKeyFromRegistry() ?? string.Empty;
+        GlmKeyBox.Password = _keyStore.GetGlmKeyFromRegistry() ?? string.Empty;
+        GroqKeyBox.Password = _keyStore.GetGroqKeyFromRegistry() ?? string.Empty;
 
         _openAiHadKey = OpenAiKeyBox.Password.Length > 0;
         _anthropicHadKey = AnthropicKeyBox.Password.Length > 0;
+        _glmHadKey = GlmKeyBox.Password.Length > 0;
+        _groqHadKey = GroqKeyBox.Password.Length > 0;
 
         // Les champs restent toujours éditables. Si une variable d'environnement
         // est active, elle reste prioritaire à l'exécution : on en avertit
@@ -39,6 +47,14 @@ public partial class ApiKeysWindow : Wpf.Ui.Controls.FluentWindow
         if (_keyStore.AnthropicFromEnvironment)
         {
             warnings.Add("AITEXTCORRECTOR_ANTHROPIC_API_KEY");
+        }
+        if (_keyStore.GlmFromEnvironment)
+        {
+            warnings.Add("AITEXTCORRECTOR_GLM_API_KEY");
+        }
+        if (_keyStore.GroqFromEnvironment)
+        {
+            warnings.Add("AITEXTCORRECTOR_GROQ_API_KEY");
         }
 
         if (warnings.Count > 0)
@@ -69,6 +85,24 @@ public partial class ApiKeysWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
+    private void GlmKeyBox_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (!_glmCleared && _glmHadKey)
+        {
+            GlmKeyBox.Clear();
+            _glmCleared = true;
+        }
+    }
+
+    private void GroqKeyBox_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (!_groqCleared && _groqHadKey)
+        {
+            GroqKeyBox.Clear();
+            _groqCleared = true;
+        }
+    }
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         // Règle simple et prévisible : on enregistre un champ uniquement si
@@ -83,6 +117,16 @@ public partial class ApiKeysWindow : Wpf.Ui.Controls.FluentWindow
         if (_anthropicCleared || !_anthropicHadKey)
         {
             _keyStore.SetAnthropicKey(AnthropicKeyBox.Password);
+        }
+
+        if (_glmCleared || !_glmHadKey)
+        {
+            _keyStore.SetGlmKey(GlmKeyBox.Password);
+        }
+
+        if (_groqCleared || !_groqHadKey)
+        {
+            _keyStore.SetGroqKey(GroqKeyBox.Password);
         }
 
         DialogResult = true;

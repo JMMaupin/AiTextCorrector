@@ -5,7 +5,7 @@
         Title="Clés API"
         Icon="pack://application:,,,/Resources/AICorrector.ico"
         Width="520"
-        Height="400"
+        Height="540"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         ExtendsContentIntoTitleBar="True"
@@ -30,7 +30,13 @@
             <PasswordBox Name="OpenAiKeyBox" FontSize="14" Margin="0,0,0,12" GotFocus="OpenAiKeyBox_GotFocus"/>
 
             <ui:TextBlock Text="Clé Anthropic / Claude" Margin="0,0,0,4"/>
-            <PasswordBox Name="AnthropicKeyBox" FontSize="14" GotFocus="AnthropicKeyBox_GotFocus"/>
+            <PasswordBox Name="AnthropicKeyBox" FontSize="14" Margin="0,0,0,12" GotFocus="AnthropicKeyBox_GotFocus"/>
+
+            <ui:TextBlock Text="Clé GLM (Z.ai)" Margin="0,0,0,4"/>
+            <PasswordBox Name="GlmKeyBox" FontSize="14" Margin="0,0,0,12" GotFocus="GlmKeyBox_GotFocus"/>
+
+            <ui:TextBlock Text="Clé Groq" Margin="0,0,0,4"/>
+            <PasswordBox Name="GroqKeyBox" FontSize="14" GotFocus="GroqKeyBox_GotFocus"/>
 
             <ui:TextBlock Name="ErrorTextBlock" Foreground="#EF4444" TextWrapping="Wrap"
                           Visibility="Collapsed" Margin="0,8,0,0"/>

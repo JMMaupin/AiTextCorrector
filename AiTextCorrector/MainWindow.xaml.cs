@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -49,18 +50,52 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         InitializeProviderSelection();
     }
 
+    // Tous les providers gérés par l'application, dans l'ordre d'affichage.
+    private static readonly string[] AllProviders = { "OpenAI", "Anthropic", "GLM", "Groq" };
+
     private void ApiButton_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new ApiKeysWindow(_keyStore) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
             StatusTextBlock.Text = "Clés API enregistrées dans le registre utilisateur.";
+            // Les clés ont pu changer : on rafraîchit la liste des providers.
+            InitializeProviderSelection();
         }
     }
 
     private void InitializeProviderSelection()
     {
-        ProviderComboBox.SelectedIndex = string.Equals(_config.Provider, "Anthropic", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        // On ne propose que les providers pour lesquels une clé est configurée.
+        var available = AllProviders.Where(p => _keyStore.HasKeyFor(p)).ToArray();
+
+        ProviderComboBox.Items.Clear();
+        foreach (var p in available)
+        {
+            ProviderComboBox.Items.Add(new ComboBoxItem { Content = p });
+        }
+
+        if (available.Length == 0)
+        {
+            // Aucune clé : rien à sélectionner. On invite à en configurer une.
+            ProviderComboBox.IsEnabled = false;
+            StatusTextBlock.Text = "Aucune clé API configurée. Clique sur « API » pour en ajouter une.";
+            return;
+        }
+
+        ProviderComboBox.IsEnabled = true;
+
+        // On resélectionne le provider courant s'il est encore disponible, sinon
+        // on bascule sur le premier disponible (et on mémorise ce choix).
+        var index = Array.FindIndex(available, p => string.Equals(p, _config.Provider, StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+        {
+            index = 0;
+            _config.Provider = available[0];
+            _configService.Save(_config);
+        }
+
+        ProviderComboBox.SelectedIndex = index;
     }
 
     private Forms.NotifyIcon CreateNotifyIcon()
@@ -436,7 +471,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void ProviderComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!IsLoaded) return;
-        var selected = (ProviderComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "OpenAI";
+
+        // Pendant un repeuplement de la liste (Clear/Add), SelectedItem passe par
+        // null : on ignore ces transitions pour ne pas écraser la config.
+        var selected = (ProviderComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
+        if (string.IsNullOrEmpty(selected)) return;
+
         _config.Provider = selected;
         _configService.Save(_config);
         StatusTextBlock.Text = $"Provider actif : {selected}.";

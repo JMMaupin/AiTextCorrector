@@ -5,6 +5,8 @@ public class AppConfig
     public string Provider { get; set; } = "OpenAI";
     public string Model { get; set; } = "gpt-4.1-mini";
     public string AnthropicModel { get; set; } = "claude-sonnet-4-6";
+    public string GlmModel { get; set; } = "glm-4.6";
+    public string GroqModel { get; set; } = "llama-3.3-70b-versatile";
     public HotkeyConfig Hotkey { get; set; } = new();
     public PromptSet Prompts { get; set; } = new();
 }
