@@ -28,6 +28,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     // Tant qu'il est faux, la croix (✕) se contente de masquer la fenêtre.
     private bool _isExiting;
 
+    // Suivi du presse-papiers : dernier texte copié et l'instant de sa copie.
+    // Sert au « collage intelligent » : si l'UI est ouverte au raccourci moins de
+    // 3 s après une copie de texte, ce texte est injecté automatiquement dans l'input.
+    private string? _lastClipboardText;
+    private DateTime _lastClipboardTextTime = DateTime.MinValue;
+    private static readonly TimeSpan AutoInjectWindow = TimeSpan.FromSeconds(3);
+
     public MainWindow()
     {
         InitializeComponent();
@@ -123,6 +130,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             StatusTextBlock.Text = $"Impossible d'enregistrer le raccourci ({_config.Hotkey.Describe()}) — déjà utilisé ? Change-le via « Raccourci… ».";
         }
+
+        // Surveillance continue du presse-papiers via les notifications Windows.
+        NativeMethods.AddClipboardFormatListener(helper.Handle);
     }
 
     private static (uint Modifiers, uint VirtualKey) ToWin32(HotkeyConfig hk)
@@ -210,6 +220,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         // Sortie réelle demandée via « Quitter » : on libère les ressources.
         var helper = new WindowInteropHelper(this);
         NativeMethods.UnregisterHotKey(helper.Handle, HotkeyId);
+        NativeMethods.RemoveClipboardFormatListener(helper.Handle);
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
     }
@@ -228,12 +239,40 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             OpenFromHotkey();
             handled = true;
         }
+        else if (msg == NativeMethods.WM_CLIPBOARDUPDATE)
+        {
+            OnClipboardUpdated();
+            handled = true;
+        }
         return IntPtr.Zero;
+    }
+
+    // Appelé à chaque changement du presse-papiers : si du texte y est présent,
+    // on le mémorise avec l'instant de l'événement.
+    private void OnClipboardUpdated()
+    {
+        var text = _clipboardService.TryReadText();
+        if (!string.IsNullOrEmpty(text))
+        {
+            _lastClipboardText = text;
+            _lastClipboardTextTime = DateTime.UtcNow;
+        }
     }
 
     private void OpenFromHotkey()
     {
         _lastForegroundWindow = NativeMethods.GetForegroundWindow();
+
+        // Collage intelligent : si un texte a été copié il y a moins de 3 s, on le
+        // place automatiquement dans l'input (sans écraser une saisie en cours).
+        if (_lastClipboardText is { Length: > 0 } &&
+            DateTime.UtcNow - _lastClipboardTextTime <= AutoInjectWindow &&
+            string.IsNullOrWhiteSpace(InputTextBox.Text))
+        {
+            InputTextBox.Text = _lastClipboardText;
+            StatusTextBlock.Text = "Texte du presse-papiers chargé automatiquement.";
+        }
+
         ShowMainWindow();
     }
 
