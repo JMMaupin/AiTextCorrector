@@ -30,4 +30,98 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    // --- Récupération du texte sélectionné dans l'application au premier plan ---
+
+    public const ushort VK_CONTROL = 0x11;
+    public const ushort VK_MENU = 0x12;    // Alt
+    public const ushort VK_SHIFT = 0x10;
+    public const ushort VK_LWIN = 0x5B;
+    public const ushort VK_RWIN = 0x5C;
+    public const ushort VK_C = 0x43;
+
+    private const uint INPUT_KEYBOARD = 1;
+    private const uint KEYEVENTF_KEYUP = 0x0002;
+
+    /// <summary>
+    /// Compteur incrémenté par Windows à chaque modification du presse-papiers.
+    /// Permet de savoir si un Ctrl+C simulé a réellement copié quelque chose,
+    /// sans avoir à comparer les contenus.
+    /// </summary>
+    [DllImport("user32.dll")]
+    public static extern uint GetClipboardSequenceNumber();
+
+    /// <summary>Bit de poids fort à 1 si la touche est physiquement enfoncée.</summary>
+    [DllImport("user32.dll")]
+    public static extern short GetAsyncKeyState(int vKey);
+
+    public static bool IsKeyDown(int vKey) => (GetAsyncKeyState(vKey) & 0x8000) != 0;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct HARDWAREINPUT
+    {
+        public uint uMsg;
+        public ushort wParamL;
+        public ushort wParamH;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct INPUTUNION
+    {
+        [FieldOffset(0)] public MOUSEINPUT mi;
+        [FieldOffset(0)] public KEYBDINPUT ki;
+        [FieldOffset(0)] public HARDWAREINPUT hi;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct INPUT
+    {
+        public uint type;
+        public INPUTUNION u;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    public static INPUT KeyInput(ushort virtualKey, bool keyUp) => new()
+    {
+        type = INPUT_KEYBOARD,
+        u = new INPUTUNION
+        {
+            ki = new KEYBDINPUT
+            {
+                wVk = virtualKey,
+                dwFlags = keyUp ? KEYEVENTF_KEYUP : 0
+            }
+        }
+    };
+
+    public static void SendKeys(params INPUT[] inputs)
+    {
+        if (inputs.Length > 0)
+        {
+            SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+        }
+    }
 }

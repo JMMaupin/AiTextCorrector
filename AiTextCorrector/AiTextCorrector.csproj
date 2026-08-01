@@ -9,6 +9,14 @@
 
     <!-- Icône gravée dans le fichier .exe (Explorateur, barre des tâches, Alt+Tab). -->
     <ApplicationIcon>Resources\AICorrector.ico</ApplicationIcon>
+
+    <!-- Source unique du nom et de la version affichés : l'interface les lit via
+         AppInfo plutôt que de les coder en dur. Alimente aussi les propriétés du
+         fichier .exe et les rapports d'erreur Windows, qui indiquaient 1.0.0.0. -->
+    <Product>AI Text Corrector</Product>
+    <!-- SemVer : les trois composants numériques sont obligatoires, le statut de
+         pré-version se met après un tiret. Retirer « -beta » au moment de la sortie. -->
+    <Version>1.2.0-beta</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -27,17 +27,35 @@ public class ClipboardService
         {
             try
             {
-                return Clipboard.ContainsText() ? Clipboard.GetText() : string.Empty;
+                if (!Clipboard.ContainsText())
+                {
+                    // Aucun texte du tout (image, fichiers…) : inutile d'insister.
+                    return string.Empty;
+                }
+
+                var text = Clipboard.GetText();
+                if (text.Length > 0)
+                {
+                    return text;
+                }
+
+                // ContainsText() annonce du texte mais GetText() rend une chaîne vide :
+                // la donnée n'est pas encore disponible (rendu différé du presse-papiers).
+                // C'est ce cas, non rattrapé, qui faisait échouer le collage automatique.
             }
             catch (ExternalException)
             {
                 // Presse-papiers momentanément verrouillé par une autre application.
-                Thread.Sleep(RetryDelayMs);
             }
             catch
             {
                 return string.Empty;
             }
+
+            // Temporisation commune aux deux causes de réessai (verrou et rendu
+            // différé) : la placer dans le seul catch laissait la boucle tourner
+            // à vide sur le second cas.
+            Thread.Sleep(RetryDelayMs);
         }
 
         return string.Empty;

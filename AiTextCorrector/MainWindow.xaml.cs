@@ -17,6 +17,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private const int HotkeyId = 9001;
     private readonly ConfigService _configService = new();
     private readonly ClipboardService _clipboardService = new();
+    private readonly SelectionCaptureService _selectionCapture = new();
     private readonly TextTransformService _textTransformService = new();
     private readonly StartupService _startupService = new();
     private readonly ApiKeyStore _keyStore = new();
@@ -29,16 +30,20 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     // Tant qu'il est faux, la croix (✕) se contente de masquer la fenêtre.
     private bool _isExiting;
 
-    // Suivi du presse-papiers : dernier texte copié et l'instant de sa copie.
-    // Sert au « collage intelligent » : si l'UI est ouverte au raccourci moins de
-    // 3 s après une copie de texte, ce texte est injecté automatiquement dans l'input.
-    private string? _lastClipboardText;
-    private DateTime _lastClipboardTextTime = DateTime.MinValue;
-    private static readonly TimeSpan AutoInjectWindow = TimeSpan.FromSeconds(3);
+    // Suivi du presse-papiers pour le « collage intelligent ». On ne mémorise que
+    // l'INSTANT du dernier changement, jamais le texte : lire le presse-papiers
+    // depuis la notification est peu fiable (voir OnClipboardUpdated).
+    private DateTime _lastClipboardChangeTime = DateTime.MinValue;
+    private static readonly TimeSpan AutoInjectWindow = TimeSpan.FromSeconds(5);
 
     public MainWindow()
     {
         InitializeComponent();
+
+        // Titre unique pour la fenêtre, la barre de titre et la zone de notification.
+        Title = AppInfo.DisplayName;
+        AppTitleBar.Title = AppInfo.DisplayName;
+
         // Suit en direct les changements de thème clair/sombre de Windows.
         Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
         _config = _configService.Load();
@@ -102,7 +107,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         var icon = new Forms.NotifyIcon
         {
-            Text = "AI Text Corrector V3",
+            Text = AppInfo.DisplayName,
             Visible = true,
             Icon = LoadTrayIcon()
         };
@@ -283,43 +288,49 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         return IntPtr.Zero;
     }
 
-    // Appelé à chaque changement du presse-papiers : si du texte y est présent,
-    // on le mémorise avec l'instant de l'événement.
+    // Appelé à chaque changement du presse-papiers.
+    //
+    // On se contente d'horodater l'événement, sans lire le presse-papiers : à cet
+    // instant précis l'application source le détient encore, et la lecture échoue
+    // fréquemment — ContainsText() répond « oui » pendant que GetText() rend une
+    // chaîne vide. La lecture a donc lieu plus tard, à l'appui du raccourci, où
+    // elle s'avère fiable.
     private void OnClipboardUpdated()
     {
-        var text = _clipboardService.TryReadText();
-        if (string.IsNullOrEmpty(text))
-        {
-            return;
-        }
-
-        // On ignore les changements provoqués par l'application elle-même (copie
-        // automatique du résultat) : sans ce filtre, appuyer sur le raccourci juste
-        // après une correction réinjecterait le texte déjà corrigé en entrée.
-        if (string.Equals(text, _clipboardService.LastWrittenText, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        _lastClipboardText = text;
-        _lastClipboardTextTime = DateTime.UtcNow;
+        _lastClipboardChangeTime = DateTime.UtcNow;
     }
 
     private void OpenFromHotkey()
     {
         _lastForegroundWindow = NativeMethods.GetForegroundWindow();
 
-        // Collage intelligent : un texte copié il y a moins de 3 s est chargé dans le
-        // champ source, en remplaçant son contenu précédent. Le remplacement est
-        // indispensable : le champ n'étant jamais vidé automatiquement, une condition
-        // « seulement si le champ est vide » ne se vérifiait qu'au tout premier usage
-        // de la session, puis plus jamais.
-        if (_lastClipboardText is { Length: > 0 } &&
-            DateTime.UtcNow - _lastClipboardTextTime <= AutoInjectWindow)
+        // On demande d'abord à l'application source de copier sa sélection, tant
+        // qu'elle a encore le focus. Si l'utilisateur avait déjà fait Ctrl+C, ou si
+        // rien n'est sélectionné, cet appel échoue sans dommage et l'on retombe sur
+        // le presse-papiers récent.
+        if (_selectionCapture.TryCopySelection())
         {
-            InputTextBox.Text = _lastClipboardText;
-            InputTextBox.CaretIndex = InputTextBox.Text.Length;
-            StatusTextBlock.Text = "Texte du presse-papiers chargé automatiquement.";
+            _lastClipboardChangeTime = DateTime.UtcNow;
+        }
+
+        // Collage intelligent : si le presse-papiers a changé récemment, on le lit
+        // maintenant — l'application source l'a relâché depuis longtemps — et on
+        // remplace le contenu du champ source. Le remplacement est indispensable :
+        // le champ n'étant jamais vidé automatiquement, une condition « seulement si
+        // le champ est vide » ne se vérifierait qu'au tout premier usage de la session.
+        if (DateTime.UtcNow - _lastClipboardChangeTime <= AutoInjectWindow)
+        {
+            var text = _clipboardService.TryReadText();
+
+            // On n'injecte pas notre propre production : après une correction avec
+            // copie automatique, le presse-papiers contient le texte déjà corrigé.
+            if (text.Length > 0 &&
+                !string.Equals(text, _clipboardService.LastWrittenText, StringComparison.Ordinal))
+            {
+                InputTextBox.Text = text;
+                InputTextBox.CaretIndex = text.Length;
+                StatusTextBlock.Text = "Texte du presse-papiers chargé automatiquement.";
+            }
         }
 
         ShowMainWindow();

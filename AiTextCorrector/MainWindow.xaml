@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        Title="AI Text Corrector V1"
+        Title="AI Text Corrector"
         Icon="pack://application:,,,/Resources/AICorrector.ico"
         Height="650"
         Width="1100"
@@ -21,7 +21,9 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="AI Text Corrector V1"/>
+        <!-- Les titres sont réécrits au démarrage depuis AppInfo : les valeurs ci-dessous
+             ne servent qu'au concepteur visuel et volontairement ne portent pas de version. -->
+        <ui:TitleBar x:Name="AppTitleBar" Grid.Row="0" Title="AI Text Corrector"/>
 
         <Grid Grid.Row="1" Margin="16,8,16,16">
             <Grid.RowDefinitions>
