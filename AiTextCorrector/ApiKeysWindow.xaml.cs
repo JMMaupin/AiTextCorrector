@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Controls;
 using AiTextCorrector.Services;
 
 namespace AiTextCorrector;
@@ -7,39 +10,22 @@ public partial class ApiKeysWindow : Wpf.Ui.Controls.FluentWindow
 {
     private readonly ApiKeyStore _keyStore;
 
-    // Vrai si le champ contenait déjà une clé à l'ouverture. Sert à ne vider
-    // qu'une fois au premier focus, et à protéger contre un effacement accidentel.
-    private bool _openAiHadKey;
-    private bool _anthropicHadKey;
-    private bool _glmHadKey;
-    private bool _groqHadKey;
-    private bool _openAiCleared;
-    private bool _anthropicCleared;
-    private bool _glmCleared;
-    private bool _groqCleared;
+    // Providers dont l'utilisateur a explicitement demandé la suppression via le
+    // bouton « Effacer ». C'est le seul chemin qui détruit une clé enregistrée.
+    private readonly HashSet<string> _markedForRemoval = new(StringComparer.OrdinalIgnoreCase);
 
     public ApiKeysWindow(ApiKeyStore keyStore)
     {
         InitializeComponent();
         _keyStore = keyStore;
 
-        // Affiche les clés enregistrées dans le registre (pas la valeur d'une
-        // éventuelle variable d'environnement : on ne veut pas exposer ni écraser
-        // celle-ci, et le champ édite bien la clé du registre).
-        OpenAiKeyBox.Password = _keyStore.GetOpenAiKeyFromRegistry() ?? string.Empty;
-        AnthropicKeyBox.Password = _keyStore.GetAnthropicKeyFromRegistry() ?? string.Empty;
-        GlmKeyBox.Password = _keyStore.GetGlmKeyFromRegistry() ?? string.Empty;
-        GroqKeyBox.Password = _keyStore.GetGroqKeyFromRegistry() ?? string.Empty;
+        // Les champs restent volontairement vides : on n'affiche jamais une clé
+        // enregistrée, et un champ vide signifie « ne pas toucher ». L'ancienne
+        // version pré-remplissait les champs puis les vidait au passage du focus,
+        // si bien que tabuler dans la fenêtre suffisait à effacer les clés.
+        RefreshStatuses();
 
-        _openAiHadKey = OpenAiKeyBox.Password.Length > 0;
-        _anthropicHadKey = AnthropicKeyBox.Password.Length > 0;
-        _glmHadKey = GlmKeyBox.Password.Length > 0;
-        _groqHadKey = GroqKeyBox.Password.Length > 0;
-
-        // Les champs restent toujours éditables. Si une variable d'environnement
-        // est active, elle reste prioritaire à l'exécution : on en avertit
-        // simplement l'utilisateur.
-        var warnings = new System.Collections.Generic.List<string>();
+        var warnings = new List<string>();
         if (_keyStore.OpenAiFromEnvironment)
         {
             warnings.Add("OPENAI_API_KEY");
@@ -65,72 +51,84 @@ public partial class ApiKeysWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    // Au premier focus, on vide le champ pour saisir directement la nouvelle clé
-    // (plutôt que d'avoir à effacer manuellement les étoiles).
-    private void OpenAiKeyBox_GotFocus(object sender, RoutedEventArgs e)
+    private void RefreshStatuses()
     {
-        if (!_openAiCleared && _openAiHadKey)
-        {
-            OpenAiKeyBox.Clear();
-            _openAiCleared = true;
-        }
+        SetStatus("OpenAI", OpenAiStatusText, OpenAiClearButton, _keyStore.GetOpenAiKeyFromRegistry());
+        SetStatus("Anthropic", AnthropicStatusText, AnthropicClearButton, _keyStore.GetAnthropicKeyFromRegistry());
+        SetStatus("GLM", GlmStatusText, GlmClearButton, _keyStore.GetGlmKeyFromRegistry());
+        SetStatus("Groq", GroqStatusText, GroqClearButton, _keyStore.GetGroqKeyFromRegistry());
     }
 
-    private void AnthropicKeyBox_GotFocus(object sender, RoutedEventArgs e)
+    private void SetStatus(string provider, Wpf.Ui.Controls.TextBlock status,
+                           Wpf.Ui.Controls.Button clearButton, string? storedKey)
     {
-        if (!_anthropicCleared && _anthropicHadKey)
+        var hasKey = !string.IsNullOrWhiteSpace(storedKey);
+
+        if (_markedForRemoval.Contains(provider))
         {
-            AnthropicKeyBox.Clear();
-            _anthropicCleared = true;
+            status.Text = "— sera supprimée à l'enregistrement";
+            clearButton.Content = "Rétablir";
+            clearButton.IsEnabled = true;
+            return;
         }
+
+        status.Text = hasKey ? "— clé enregistrée" : "— aucune clé enregistrée";
+        clearButton.Content = "Effacer";
+        clearButton.IsEnabled = hasKey;
     }
 
-    private void GlmKeyBox_GotFocus(object sender, RoutedEventArgs e)
+    // La suppression n'est effective qu'à l'enregistrement, et reste réversible
+    // tant que la fenêtre est ouverte (« Rétablir », ou « Annuler »).
+    private void ToggleRemoval(string provider, PasswordBox box)
     {
-        if (!_glmCleared && _glmHadKey)
+        if (!_markedForRemoval.Add(provider))
         {
-            GlmKeyBox.Clear();
-            _glmCleared = true;
+            _markedForRemoval.Remove(provider);
         }
+        else
+        {
+            box.Clear();
+        }
+
+        RefreshStatuses();
     }
 
-    private void GroqKeyBox_GotFocus(object sender, RoutedEventArgs e)
-    {
-        if (!_groqCleared && _groqHadKey)
-        {
-            GroqKeyBox.Clear();
-            _groqCleared = true;
-        }
-    }
+    private void OpenAiClear_Click(object sender, RoutedEventArgs e) => ToggleRemoval("OpenAI", OpenAiKeyBox);
+
+    private void AnthropicClear_Click(object sender, RoutedEventArgs e) => ToggleRemoval("Anthropic", AnthropicKeyBox);
+
+    private void GlmClear_Click(object sender, RoutedEventArgs e) => ToggleRemoval("GLM", GlmKeyBox);
+
+    private void GroqClear_Click(object sender, RoutedEventArgs e) => ToggleRemoval("Groq", GroqKeyBox);
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        // Règle simple et prévisible : on enregistre un champ uniquement si
-        // l'utilisateur l'a touché (focus). Un champ jamais cliqué conserve donc
-        // sa clé d'origine ; un champ cliqué enregistre exactement son contenu
-        // actuel (vide compris, pour permettre la suppression volontaire).
-        if (_openAiCleared || !_openAiHadKey)
-        {
-            _keyStore.SetOpenAiKey(OpenAiKeyBox.Password);
-        }
-
-        if (_anthropicCleared || !_anthropicHadKey)
-        {
-            _keyStore.SetAnthropicKey(AnthropicKeyBox.Password);
-        }
-
-        if (_glmCleared || !_glmHadKey)
-        {
-            _keyStore.SetGlmKey(GlmKeyBox.Password);
-        }
-
-        if (_groqCleared || !_groqHadKey)
-        {
-            _keyStore.SetGroqKey(GroqKeyBox.Password);
-        }
+        Apply("OpenAI", OpenAiKeyBox, _keyStore.SetOpenAiKey);
+        Apply("Anthropic", AnthropicKeyBox, _keyStore.SetAnthropicKey);
+        Apply("GLM", GlmKeyBox, _keyStore.SetGlmKey);
+        Apply("Groq", GroqKeyBox, _keyStore.SetGroqKey);
 
         DialogResult = true;
         Close();
+    }
+
+    /// <summary>
+    /// Champ vide = clé existante conservée. Saisie = remplacement. Suppression
+    /// uniquement si elle a été demandée explicitement.
+    /// </summary>
+    private void Apply(string provider, PasswordBox box, Action<string?> setter)
+    {
+        if (_markedForRemoval.Contains(provider))
+        {
+            setter(null);
+            return;
+        }
+
+        var typed = box.Password;
+        if (!string.IsNullOrWhiteSpace(typed))
+        {
+            setter(typed);
+        }
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => Close();

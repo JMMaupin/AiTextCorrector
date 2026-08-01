@@ -207,8 +207,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (RegisterHotkey(handle, hk))
         {
             _config.Hotkey = hk;
-            _configService.Save(_config);
-            StatusTextBlock.Text = $"Raccourci défini : {hk.Describe()}.";
+            StatusTextBlock.Text = _configService.Save(_config)
+                ? $"Raccourci défini : {hk.Describe()}."
+                : $"Raccourci défini : {hk.Describe()} — mais il ne sera pas conservé au prochain lancement.";
             return true;
         }
 
@@ -287,24 +288,37 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void OnClipboardUpdated()
     {
         var text = _clipboardService.TryReadText();
-        if (!string.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(text))
         {
-            _lastClipboardText = text;
-            _lastClipboardTextTime = DateTime.UtcNow;
+            return;
         }
+
+        // On ignore les changements provoqués par l'application elle-même (copie
+        // automatique du résultat) : sans ce filtre, appuyer sur le raccourci juste
+        // après une correction réinjecterait le texte déjà corrigé en entrée.
+        if (string.Equals(text, _clipboardService.LastWrittenText, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _lastClipboardText = text;
+        _lastClipboardTextTime = DateTime.UtcNow;
     }
 
     private void OpenFromHotkey()
     {
         _lastForegroundWindow = NativeMethods.GetForegroundWindow();
 
-        // Collage intelligent : si un texte a été copié il y a moins de 3 s, on le
-        // place automatiquement dans l'input (sans écraser une saisie en cours).
+        // Collage intelligent : un texte copié il y a moins de 3 s est chargé dans le
+        // champ source, en remplaçant son contenu précédent. Le remplacement est
+        // indispensable : le champ n'étant jamais vidé automatiquement, une condition
+        // « seulement si le champ est vide » ne se vérifiait qu'au tout premier usage
+        // de la session, puis plus jamais.
         if (_lastClipboardText is { Length: > 0 } &&
-            DateTime.UtcNow - _lastClipboardTextTime <= AutoInjectWindow &&
-            string.IsNullOrWhiteSpace(InputTextBox.Text))
+            DateTime.UtcNow - _lastClipboardTextTime <= AutoInjectWindow)
         {
             InputTextBox.Text = _lastClipboardText;
+            InputTextBox.CaretIndex = InputTextBox.Text.Length;
             StatusTextBlock.Text = "Texte du presse-papiers chargé automatiquement.";
         }
 
@@ -345,8 +359,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
             if (AutoCopyCheckBox.IsChecked == true)
             {
-                _clipboardService.WritePlainText(finalText);
-                StatusTextBlock.Text = $"Correction terminée via {_config.Provider}. Résultat copié dans le presse-papiers.";
+                StatusTextBlock.Text = _clipboardService.WritePlainText(finalText)
+                    ? $"Correction terminée via {_config.Provider}. Résultat copié dans le presse-papiers."
+                    : $"Correction terminée via {_config.Provider}. Échec de la copie dans le presse-papiers.";
             }
             else
             {
@@ -424,7 +439,16 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void PasteBackButton_Click(object sender, RoutedEventArgs e)
     {
-        await PasteBackInternalAsync();
+        // Gestionnaire async void : une exception non rattrapée ici terminerait le
+        // processus au lieu de remonter à l'appelant.
+        try
+        {
+            await PasteBackInternalAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusTextBlock.Text = "Impossible de recoller le texte : " + ex.Message;
+        }
     }
 
     private async Task PasteBackInternalAsync()
@@ -478,7 +502,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (string.IsNullOrEmpty(selected)) return;
 
         _config.Provider = selected;
-        _configService.Save(_config);
-        StatusTextBlock.Text = $"Provider actif : {selected}.";
+        StatusTextBlock.Text = _configService.Save(_config)
+            ? $"Provider actif : {selected}."
+            : $"Provider actif : {selected} — mais la configuration n'a pas pu être enregistrée.";
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace AiTextCorrector;
 
@@ -17,6 +18,12 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Sans ces gardes, la moindre exception non gérée termine le processus en
+        // silence. C'est ce qui donnait l'impression que l'application « ne se
+        // lançait pas » au démarrage de Windows : aucune fenêtre, aucun message.
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+
         base.OnStartup(e);
 
         _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out bool createdNew);
@@ -42,18 +49,60 @@ public partial class App : Application
             return;
         }
 
-        // Première instance : applique le thème, crée la fenêtre, et écoute les
-        // demandes d'affichage envoyées par d'éventuelles instances ultérieures.
-        Wpf.Ui.Appearance.ApplicationThemeManager.ApplySystemTheme();
-        _mainWindow = new MainWindow();
-
-        // L'UI est visible à chaque lancement. La réduction (–) ou la croix (✕)
-        // l'envoie dans la zone de notification ; relancer l'application la
-        // réaffiche. Show() force aussi le cycle Loaded qui enregistre le hotkey.
-        _mainWindow.Show();
-
+        // L'événement est créé avant la fenêtre : une seconde instance lancée
+        // pendant l'initialisation doit pouvoir nous signaler, sinon elle se
+        // termine sans rien afficher.
         _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
         StartShowRequestListener();
+
+        // Première instance : applique le thème et crée la fenêtre.
+        try
+        {
+            Wpf.Ui.Appearance.ApplicationThemeManager.ApplySystemTheme();
+            _mainWindow = new MainWindow();
+
+            // L'UI est visible à chaque lancement. La réduction (–) ou la croix (✕)
+            // l'envoie dans la zone de notification ; relancer l'application la
+            // réaffiche. Show() force aussi le cycle Loaded qui enregistre le hotkey.
+            _mainWindow.Show();
+        }
+        catch (Exception ex)
+        {
+            // Échec d'initialisation : mieux vaut un message explicite qu'un
+            // processus fantôme sans fenêtre ni icône de notification.
+            ReportError(ex, "Impossible de démarrer AI Text Corrector.");
+            Shutdown();
+        }
+    }
+
+    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        // On signale l'erreur et on garde l'application en vie : une exception dans
+        // un gestionnaire d'événement ne doit pas faire disparaître l'icône systray.
+        e.Handled = true;
+        ReportError(e.Exception, "Une erreur inattendue s'est produite.");
+    }
+
+    private static void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception ex)
+        {
+            ReportError(ex, "Une erreur inattendue s'est produite.");
+        }
+    }
+
+    private static void ReportError(Exception ex, string title)
+    {
+        try
+        {
+            MessageBox.Show($"{title}\n\n{ex.GetType().Name} : {ex.Message}",
+                "AI Text Corrector", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch
+        {
+            // Impossible d'afficher un message (session en fermeture) : on abandonne
+            // silencieusement plutôt que de relancer une exception depuis un handler.
+        }
     }
 
     private void StartShowRequestListener()
