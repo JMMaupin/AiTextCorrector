@@ -71,6 +71,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         StateChanged += MainWindow_StateChanged;
         InitializeProviderSelection();
         InitializeLanguageSelection();
+
+        ExplainCheckBox.IsChecked = _config.ExplainErrors;
+        InputTextBox.TextChanged += InputTextBox_TextChanged;
     }
 
     // Tous les providers gérés par l'application, dans l'ordre d'affichage.
@@ -428,8 +431,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     }
 
     // Exécute un appel IA puis le traitement commun à la correction et à la
-    // traduction : mode ASCII, copie et recollage automatiques.
-    private async Task RunAiAsync(Func<Task<string>> call, string busyStatus, string doneStatus)
+    // traduction : mode ASCII, copie et recollage automatiques. Renvoie false si
+    // l'appel a échoué (le message d'erreur est déjà dans la barre d'état).
+    private async Task<bool> RunAiAsync(Func<Task<string>> call, string busyStatus, string doneStatus,
+                                        bool allowAutoPasteBack = true)
     {
         try
         {
@@ -452,18 +457,126 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 StatusTextBlock.Text = doneStatus;
             }
 
-            if (AutoPasteBackCheckBox.IsChecked == true)
+            if (allowAutoPasteBack && AutoPasteBackCheckBox.IsChecked == true)
             {
                 await PasteBackInternalAsync();
             }
+
+            return true;
         }
         catch (Exception ex)
         {
             StatusTextBlock.Text = "API error: " + ex.Message;
+            return false;
         }
         finally
         {
             SetBusy(false, StatusTextBlock.Text);
+        }
+    }
+
+    // Correction stricte avec l'option « Explain » : le texte corrigé arrive à droite
+    // comme d'habitude, et la zone source montre chaque faute au stylo rouge.
+    private async Task RunExplainedCorrectionAsync(string prompt)
+    {
+        // Fins de ligne unifiées : le texte corrigé revient en \n, et la comparaison
+        // ne doit pas voir une différence à chaque retour à la ligne.
+        var input = (InputTextBox.Text ?? string.Empty).Replace("\r\n", "\n").Trim();
+        if (input.Length == 0)
+        {
+            StatusTextBlock.Text = "No text to correct.";
+            return;
+        }
+
+        HideAnnotations();
+        ExplainedCorrection? explained = null;
+
+        // Pas de recollage automatique : la fenêtre se masquerait avant qu'on ait pu
+        // lire les explications.
+        var succeeded = await RunAiAsync(async () =>
+            {
+                try
+                {
+                    explained = await _aiService.CorrectWithExplanationsAsync(input, prompt);
+                    return explained.Corrected;
+                }
+                catch (InvalidExplanationException)
+                {
+                    // Réponse inexploitable : correction ordinaire, pour ne jamais
+                    // obtenir moins que sans l'option.
+                    return await _aiService.CorrectAsync(input, prompt);
+                }
+            },
+            $"Correcting and explaining via {_config.Provider}…",
+            $"Corrected via {_config.Provider}.",
+            allowAutoPasteBack: false);
+        if (!succeeded) return;
+
+        if (AutoPasteBackCheckBox.IsChecked == true)
+        {
+            StatusTextBlock.Text += " Auto paste-back is skipped with Explain.";
+        }
+
+        if (explained is null)
+        {
+            StatusTextBlock.Text += " Explanations unavailable for this answer: plain correction shown.";
+            return;
+        }
+
+        var segments = TextDiff.Compare(input, explained.Corrected);
+        if (segments is null)
+        {
+            StatusTextBlock.Text += " Too many changes to annotate.";
+            return;
+        }
+
+        var count = AnnotatedView.Show(segments, explained.Errors);
+        if (count == 0)
+        {
+            StatusTextBlock.Text += " No errors found.";
+            return;
+        }
+
+        InputTextBox.Visibility = Visibility.Collapsed;
+        AnnotatedView.Visibility = Visibility.Visible;
+        StatusTextBlock.Text += count == 1
+            ? " 1 correction in red: hover it for the rule, click the text to edit it."
+            : $" {count} corrections in red: hover them for the rule, click the text to edit it.";
+    }
+
+    private void HideAnnotations()
+    {
+        AnnotatedView.Visibility = Visibility.Collapsed;
+        InputTextBox.Visibility = Visibility.Visible;
+    }
+
+    private void AnnotatedView_EditRequested(object? sender, EventArgs e)
+    {
+        HideAnnotations();
+        InputTextBox.Focus();
+        InputTextBox.CaretIndex = InputTextBox.Text.Length;
+    }
+
+    // Texte remplacé pendant la lecture (raccourci, collage, « Vider ») : les
+    // annotations ne lui correspondent plus.
+    private void InputTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (AnnotatedView.Visibility == Visibility.Visible)
+        {
+            HideAnnotations();
+        }
+    }
+
+    private void ExplainCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded) return;
+
+        _config.ExplainErrors = ExplainCheckBox.IsChecked == true;
+        _configService.Save(_config);
+
+        if (!_config.ExplainErrors)
+        {
+            HideAnnotations();
         }
     }
 
@@ -606,6 +719,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ProfessionalButton.IsEnabled = !busy;
         CustomButton.IsEnabled = !busy;
         TranslateButton.IsEnabled = !busy;
+        ExplainCheckBox.IsEnabled = !busy;
         PasteClipboardButton.IsEnabled = !busy;
         CopyResultButton.IsEnabled = !busy;
         PasteBackButton.IsEnabled = !busy;
@@ -619,8 +733,19 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         StatusTextBlock.Text = status;
     }
 
+    // Seul mode concerné par « Explain » : ses différences sont des fautes ponctuelles,
+    // alors qu'une reformulation changerait presque toutes les phrases.
     private async void StrictCorrectionButton_Click(object sender, RoutedEventArgs e)
-        => await RunPromptAsync(_config.Prompts.StrictCorrection);
+    {
+        if (ExplainCheckBox.IsChecked == true)
+        {
+            await RunExplainedCorrectionAsync(_config.Prompts.StrictCorrection);
+        }
+        else
+        {
+            await RunPromptAsync(_config.Prompts.StrictCorrection);
+        }
+    }
 
     private async void RewriteLightButton_Click(object sender, RoutedEventArgs e)
         => await RunPromptAsync(_config.Prompts.CorrectionAndRewrite);

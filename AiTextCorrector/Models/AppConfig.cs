@@ -15,6 +15,9 @@ public class AppConfig
     // Dernière langue choisie, resélectionnée au démarrage.
     public string TranslationLanguage { get; set; } = "English";
 
+    // Option « Explain » : la correction stricte annote chaque faute dans la zone source.
+    public bool ExplainErrors { get; set; }
+
     public HotkeyConfig Hotkey { get; set; } = new();
     public PromptSet Prompts { get; set; } = new();
 }

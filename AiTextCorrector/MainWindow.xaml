@@ -63,12 +63,20 @@
 
                 <GroupBox Header="Texte source" Padding="8" Margin="0,0,6,0">
                     <DockPanel>
-                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                        <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                             <ui:Button Name="PasteClipboardButton" Content="Coller depuis le presse-papiers" MinWidth="220" Margin="0,0,8,0" Click="PasteClipboardButton_Click"/>
                             <ui:Button Name="ClearInputButton" Content="Vider" MinWidth="90" Click="ClearInputButton_Click"/>
-                        </StackPanel>
-                        <ui:TextBox Name="InputTextBox" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                                    TextWrapping="Wrap" FontSize="14" PlaceholderText="Tape ou colle ton texte ici" ToolTip="Tape ou colle ton texte ici"/>
+                            <CheckBox Name="ExplainCheckBox" Content="Explain" Margin="16,0,0,0" VerticalAlignment="Center"
+                                      ToolTip="With « Correction stricte », show each error in red here, with the rule on hover"
+                                      Checked="ExplainCheckBox_Changed" Unchecked="ExplainCheckBox_Changed"/>
+                        </WrapPanel>
+                        <!-- La vue annotée prend la place de la zone de saisie le temps de la
+                             lecture ; un clic dedans revient à l'édition. -->
+                        <Grid>
+                            <ui:TextBox Name="InputTextBox" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                        TextWrapping="Wrap" FontSize="14" PlaceholderText="Tape ou colle ton texte ici" ToolTip="Tape ou colle ton texte ici"/>
+                            <controls:AnnotatedTextView x:Name="AnnotatedView" Visibility="Collapsed" EditRequested="AnnotatedView_EditRequested"/>
+                        </Grid>
                     </DockPanel>
                 </GroupBox>
 

@@ -1,0 +1,15 @@
+<UserControl x:Class="AiTextCorrector.Controls.AnnotatedTextView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Même apparence que la zone de saisie, qu'elle remplace le temps de la
+         lecture. Un clic n'importe où (hors barre de défilement) revient à l'édition. -->
+    <Border Background="{DynamicResource TextControlBackground}"
+            BorderBrush="{DynamicResource TextControlElevationBorderBrush}"
+            BorderThickness="1" CornerRadius="4" Cursor="IBeam"
+            MouseLeftButtonUp="Frame_MouseLeftButtonUp">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <TextBlock x:Name="AnnotatedText" TextWrapping="Wrap" FontSize="14" LineHeight="22"
+                       Margin="11,6,11,6" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+        </ScrollViewer>
+    </Border>
+</UserControl>
