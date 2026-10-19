@@ -2,7 +2,9 @@ using System;
 using System.ClientModel;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AiTextCorrector.Models;
 using Anthropic;
@@ -201,17 +203,24 @@ public class MultiProviderCorrectionService
         ChatCompletion completion;
         try
         {
-            // Mode JSON : le service garantit un objet JSON valide en réponse.
-            var options = jsonMode
-                ? new ChatCompletionOptions { ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat() }
-                : null;
-            completion = await client.CompleteChatAsync(messages, options);
+            try
+            {
+                // Mode JSON : le service garantit un objet JSON valide en réponse.
+                var options = jsonMode
+                    ? new ChatCompletionOptions { ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat() }
+                    : null;
+                completion = await client.CompleteChatAsync(messages, options);
+            }
+            catch (ClientResultException ex) when (jsonMode && ex.Status == 400)
+            {
+                // Modèle qui refuse le mode JSON : la consigne du prompt suffit, et
+                // l'analyse de la réponse est tolérante.
+                completion = await client.CompleteChatAsync(messages);
+            }
         }
-        catch (ClientResultException ex) when (jsonMode && ex.Status == 400)
+        catch (ClientResultException ex)
         {
-            // Modèle qui refuse le mode JSON : la consigne du prompt suffit, et
-            // l'analyse de la réponse est tolérante.
-            completion = await client.CompleteChatAsync(messages);
+            throw new InvalidOperationException(DescribeHttpError(providerLabel, ex), ex);
         }
 
         var text = completion.Content.Count > 0 ? completion.Content[0].Text : string.Empty;
@@ -222,6 +231,79 @@ public class MultiProviderCorrectionService
         }
 
         return text.Trim();
+    }
+
+    /// <summary>
+    /// Message d'erreur HTTP sur une ligne, pour la barre d'état : service, code,
+    /// raison donnée par le serveur et piste de résolution. Le message du SDK
+    /// reléguait la raison sous deux retours à la ligne (« HTTP 403 (…) ⏎⏎ raison »),
+    /// voire la perdait quand un pare-feu répond par une page HTML.
+    /// </summary>
+    internal static string DescribeHttpError(string provider, ClientResultException ex)
+    {
+        var detail = ExtractErrorDetail(ReadBody(ex));
+        var hint = ex.Status switch
+        {
+            401 => "The API key is invalid or revoked: check it in Settings > API keys.",
+            403 => "Access refused from this computer: check for a VPN, a company proxy or firewall, " +
+                   "a country the provider does not serve, or another key set in an environment variable.",
+            404 => "Unknown model or address: check the model name in the configuration file.",
+            429 => "Rate limit or quota reached: wait a moment, or check your plan and credit.",
+            >= 500 => "Temporary problem at the provider: try again in a moment.",
+            _ => string.Empty
+        };
+
+        var text = detail.Length > 0
+            ? $"{provider} returned HTTP {ex.Status}: {detail}"
+            : $"{provider} returned HTTP {ex.Status}";
+        return hint.Length > 0 ? $"{text}. {hint}" : $"{text}.";
+    }
+
+    // Corps de la réponse d'erreur, ou null. Une réponse vide fait lever une
+    // exception à la lecture (« Value cannot be null… ») : elle ne doit pas masquer
+    // l'erreur HTTP d'origine.
+    private static string? ReadBody(ClientResultException ex)
+    {
+        try
+        {
+            return ex.GetRawResponse()?.Content?.ToString();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // Raison lisible dans le corps de la réponse : message JSON au format OpenAI,
+    // sinon titre de la page HTML (pare-feu, proxy), sinon début du texte brut.
+    private static string ExtractErrorDetail(string? body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return string.Empty;
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            if (Property(document.RootElement, "error") is { } error)
+            {
+                var message = error.ValueKind == JsonValueKind.String ? error.GetString() : StringProperty(error, "message");
+                if (!string.IsNullOrWhiteSpace(message)) return Shorten(message);
+            }
+        }
+        catch (JsonException)
+        {
+            // Pas du JSON : page HTML ou texte brut.
+        }
+
+        var title = Regex.Match(body, "<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        if (title.Success) return Shorten(WebUtility.HtmlDecode(title.Groups[1].Value));
+
+        return body.TrimStart().StartsWith('<') ? string.Empty : Shorten(body);
+    }
+
+    private static string Shorten(string text)
+    {
+        var line = Regex.Replace(text, @"\s+", " ").Trim().TrimEnd('.');
+        return line.Length > 200 ? line[..200] + "…" : line;
     }
 
     private async Task<string> CompleteWithAnthropicAsync(string userMessage, int maxTokens)

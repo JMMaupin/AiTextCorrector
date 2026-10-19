@@ -13,15 +13,19 @@ using AiTextCorrector.Services;
 namespace AiTextCorrector.Controls;
 
 /// <summary>
-/// Texte annoté « au stylo rouge » : chaque faute barrée en rouge, suivie de sa
-/// correction, avec une info-bulle qui rappelle la règle. Lecture seule ; un clic
+/// Texte annoté « au stylo » : chaque faute en rouge, suivie de sa correction en
+/// vert, avec une info-bulle qui rappelle la règle. Lecture seule ; un clic
 /// demande le retour à l'édition (<see cref="EditRequested"/>).
 /// </summary>
 public partial class AnnotatedTextView : UserControl
 {
-    // Rouge lisible sur les deux thèmes, clair et sombre.
+    // Faute en rouge, correction en vert (le vert « disponible » de l'onglet
+    // Shortcut) : couleurs lisibles sur les deux thèmes, clair et sombre.
     private static readonly Brush ErrorBrush = Frozen(Color.FromRgb(0xE5, 0x48, 0x4D));
-    private static readonly Brush HoverBrush = Frozen(Color.FromArgb(0x33, 0xE5, 0x48, 0x4D));
+    private static readonly Brush CorrectionBrush = Frozen(Color.FromRgb(0x22, 0xC5, 0x5E));
+
+    // Surlignage neutre au survol : ni rouge ni vert, pour ne pas brouiller le code couleur.
+    private static readonly Brush HoverBrush = Frozen(Color.FromArgb(0x33, 0x80, 0x80, 0x80));
 
     public AnnotatedTextView()
     {
@@ -61,11 +65,11 @@ public partial class AnnotatedTextView : UserControl
 
         if (before.Length > 0)
         {
-            span.Inlines.Add(new Run(before) { Foreground = ErrorBrush, TextDecorations = TextDecorations.Strikethrough });
+            span.Inlines.Add(new Run(before) { Foreground = ErrorBrush });
         }
 
-        // Un espace entre le mot barré et sa correction, sans quoi « les » et « le »
-        // se liraient « lesle ».
+        // Un espace entre la faute et sa correction, sans quoi « les » et « le » se
+        // liraient « lesle ».
         if (before.Length > 0 && after.Length > 0 && !char.IsWhiteSpace(before[^1]) && !char.IsWhiteSpace(after[0]))
         {
             span.Inlines.Add(new Run(" "));
@@ -73,7 +77,7 @@ public partial class AnnotatedTextView : UserControl
 
         if (after.Length > 0)
         {
-            span.Inlines.Add(new Run(after) { Foreground = ErrorBrush, FontWeight = FontWeights.SemiBold });
+            span.Inlines.Add(new Run(after) { Foreground = CorrectionBrush, FontWeight = FontWeights.SemiBold });
         }
 
         span.ToolTip = BuildToolTip(change, explanation);

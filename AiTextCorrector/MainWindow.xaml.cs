@@ -540,8 +540,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         InputTextBox.Visibility = Visibility.Collapsed;
         AnnotatedView.Visibility = Visibility.Visible;
         StatusTextBlock.Text += count == 1
-            ? " 1 correction in red: hover it for the rule, click the text to edit it."
-            : $" {count} corrections in red: hover them for the rule, click the text to edit it.";
+            ? " 1 error (red, fixed in green): hover it for the rule, click the text to edit it."
+            : $" {count} errors (red, fixed in green): hover them for the rule, click the text to edit it.";
     }
 
     private void HideAnnotations()

@@ -56,8 +56,8 @@ select text  ->  press the shortcut  ->  click a correction mode  ->  paste back
   application, automatically or with one click.
 - **Plain text output**: no formatting is ever pasted. An optional ASCII mode strips accents and
   non-ASCII characters.
-- **Learn from your mistakes**: with the *Explain* option, a strict correction marks each error in
-  red in your text, like a teacher's pen, and explains the rule on hover.
+- **Learn from your mistakes**: with the *Explain* option, a strict correction shows each error in
+  red in your text, followed by its correction in green, and explains the rule on hover.
 - **Character-level undo** in the source box: `Ctrl+Z` goes back one keystroke at a time and also
   undoes text loaded by the app.
 - **Lives in the notification area** and can start with Windows.
@@ -149,7 +149,7 @@ The main window labels are currently in French. Here is what each control does:
 | Gear button | Open the [settings](#settings). |
 | **Coller depuis le presse-papiers** | Load the clipboard into the source box. |
 | **Vider** | Clear the box above which it sits. |
-| **Explain** | With **Correction stricte**, mark each error in red in the source box and explain it on hover (see [Explain](#explain-learn-from-your-mistakes)). Remembered between sessions. |
+| **Explain** | With **Correction stricte**, show each error in red and its correction in green in the source box, explained on hover (see [Explain](#explain-learn-from-your-mistakes)). Remembered between sessions. |
 | **Copier le résultat** | Copy the result to the clipboard. |
 | **Recoller dans l'app** | Paste the result into the application you came from. |
 | **Correction stricte** | Fix spelling, grammar and punctuation only, without rephrasing. |
@@ -168,8 +168,8 @@ stays French. Every prompt can be changed in [Settings > Prompts](#prompts).
 Check **Explain**, next to **Vider**, then click **Correction stricte**:
 
 - the corrected text appears on the right as usual;
-- the source box shows your text corrected like a teacher's pen: each wrong word struck through
-  in red, followed by its correction in red;
+- the source box shows your text corrected like a teacher's pen: each wrong word in red,
+  followed by its correction in green;
 - hover a correction to see the error, its category, the rule and a short explanation, written
   in the language of the text;
 - click anywhere in the text to go back to editing it. Changing the text also removes the marks,

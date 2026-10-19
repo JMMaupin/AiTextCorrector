@@ -67,7 +67,7 @@
                             <ui:Button Name="PasteClipboardButton" Content="Coller depuis le presse-papiers" MinWidth="220" Margin="0,0,8,0" Click="PasteClipboardButton_Click"/>
                             <ui:Button Name="ClearInputButton" Content="Vider" MinWidth="90" Click="ClearInputButton_Click"/>
                             <CheckBox Name="ExplainCheckBox" Content="Explain" Margin="16,0,0,0" VerticalAlignment="Center"
-                                      ToolTip="With « Correction stricte », show each error in red here, with the rule on hover"
+                                      ToolTip="With « Correction stricte », show each error in red and its correction in green here, with the rule on hover"
                                       Checked="ExplainCheckBox_Changed" Unchecked="ExplainCheckBox_Changed"/>
                         </WrapPanel>
                         <!-- La vue annotée prend la place de la zone de saisie le temps de la
