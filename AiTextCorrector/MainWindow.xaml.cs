@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using AiTextCorrector.Controls;
 using AiTextCorrector.Interop;
 using AiTextCorrector.Models;
 using AiTextCorrector.Services;
@@ -36,9 +37,24 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private DateTime _lastClipboardChangeTime = DateTime.MinValue;
     private static readonly TimeSpan AutoInjectWindow = TimeSpan.FromSeconds(5);
 
+    // Temps accordé à l'application source pour déposer son texte une fois la
+    // copie signalée.
+    private static readonly TimeSpan SelectionReadTimeout = TimeSpan.FromSeconds(1);
+
+    // Copie tardive : une application lente (Word, Outlook, Teams…) peut honorer
+    // le Ctrl+C simulé après le délai de capture. Jusqu'à cette échéance, le
+    // prochain changement du presse-papiers est traité comme la sélection.
+    private DateTime _lateCaptureDeadline = DateTime.MinValue;
+    private static readonly TimeSpan LateCaptureWindow = TimeSpan.FromSeconds(2);
+
+    // Vrai pendant la capture déclenchée par le raccourci : les attentes étant
+    // asynchrones, un second appui pourrait sinon lancer une capture concurrente.
+    private bool _isCapturing;
+
     public MainWindow()
     {
         InitializeComponent();
+        CharacterUndoHistory.Attach(InputTextBox);
 
         // Titre unique pour la fenêtre, la barre de titre et la zone de notification.
         Title = AppInfo.DisplayName;
@@ -53,6 +69,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         Closing += MainWindow_Closing;
         StateChanged += MainWindow_StateChanged;
         InitializeProviderSelection();
+        InitializeLanguageSelection();
     }
 
     // Tous les providers gérés par l'application, dans l'ordre d'affichage.
@@ -290,54 +307,110 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     // Appelé à chaque changement du presse-papiers.
     //
-    // On se contente d'horodater l'événement, sans lire le presse-papiers : à cet
-    // instant précis l'application source le détient encore, et la lecture échoue
-    // fréquemment — ContainsText() répond « oui » pendant que GetText() rend une
-    // chaîne vide. La lecture a donc lieu plus tard, à l'appui du raccourci, où
-    // elle s'avère fiable.
+    // En temps normal on se contente d'horodater l'événement : la lecture a lieu
+    // plus tard, à l'appui du raccourci. Seule exception, la copie tardive d'une
+    // application lente, lue avec réessais car le texte n'est pas toujours
+    // disponible à l'instant de la notification.
     private void OnClipboardUpdated()
     {
         _lastClipboardChangeTime = DateTime.UtcNow;
+
+        if (DateTime.UtcNow <= _lateCaptureDeadline)
+        {
+            _lateCaptureDeadline = DateTime.MinValue;
+            // Le filtre reste actif ici : pendant ce délai, le changement peut aussi
+            // venir de nous (bouton de copie du résultat).
+            _ = LoadClipboardIntoInputAsync(SelectionReadTimeout, skipOwnOutput: true);
+        }
     }
 
-    private void OpenFromHotkey()
+    private async void OpenFromHotkey()
     {
-        _lastForegroundWindow = NativeMethods.GetForegroundWindow();
+        if (_isCapturing) return;
+        _isCapturing = true;
 
-        // On demande d'abord à l'application source de copier sa sélection, tant
-        // qu'elle a encore le focus. Si l'utilisateur avait déjà fait Ctrl+C, ou si
-        // rien n'est sélectionné, cet appel échoue sans dommage et l'on retombe sur
-        // le presse-papiers récent.
-        if (_selectionCapture.TryCopySelection())
+        try
         {
-            _lastClipboardChangeTime = DateTime.UtcNow;
-        }
+            _lastForegroundWindow = NativeMethods.GetForegroundWindow();
+            _lateCaptureDeadline = DateTime.MinValue;
 
-        // Collage intelligent : si le presse-papiers a changé récemment, on le lit
-        // maintenant — l'application source l'a relâché depuis longtemps — et on
-        // remplace le contenu du champ source. Le remplacement est indispensable :
-        // le champ n'étant jamais vidé automatiquement, une condition « seulement si
-        // le champ est vide » ne se vérifierait qu'au tout premier usage de la session.
-        if (DateTime.UtcNow - _lastClipboardChangeTime <= AutoInjectWindow)
-        {
-            var text = _clipboardService.TryReadText();
-
-            // On n'injecte pas notre propre production : après une correction avec
-            // copie automatique, le presse-papiers contient le texte déjà corrigé.
-            if (text.Length > 0 &&
-                !string.Equals(text, _clipboardService.LastWrittenText, StringComparison.Ordinal))
+            // On demande d'abord à l'application source de copier sa sélection, tant
+            // qu'elle a encore le focus.
+            if (await _selectionCapture.TryCopySelectionAsync())
             {
-                InputTextBox.Text = text;
-                InputTextBox.CaretIndex = text.Length;
-                StatusTextBlock.Text = "Texte du presse-papiers chargé automatiquement.";
-            }
-        }
+                _lastClipboardChangeTime = DateTime.UtcNow;
 
-        ShowMainWindow();
+                // La copie vient de NOTRE Ctrl+C : c'est la sélection, même si elle
+                // est identique au dernier résultat (texte recollé puis resélectionné
+                // pour une autre correction). Le filtre anti-réinjection l'écartait.
+                await LoadClipboardIntoInputAsync(SelectionReadTimeout, skipOwnOutput: false);
+            }
+            else
+            {
+                // Aucune copie constatée : soit rien n'est sélectionné, soit
+                // l'application source est lente. Collage intelligent d'abord : si le
+                // presse-papiers a changé récemment (Ctrl+C manuel), on le reprend. Le
+                // remplacement est indispensable : le champ n'étant jamais vidé
+                // automatiquement, une condition « seulement si le champ est vide » ne
+                // se vérifierait qu'au tout premier usage de la session.
+                if (DateTime.UtcNow - _lastClipboardChangeTime <= AutoInjectWindow)
+                {
+                    var text = _clipboardService.TryReadText();
+
+                    // On n'injecte pas notre propre production : après une correction avec
+                    // copie automatique, le presse-papiers contient le texte déjà corrigé.
+                    if (text.Length > 0 &&
+                        !string.Equals(text, _clipboardService.LastWrittenText, StringComparison.Ordinal))
+                    {
+                        SetInputFromClipboard(text);
+                    }
+                }
+
+                // Puis on guette une copie tardive, qui remplacera ce contenu.
+                _lateCaptureDeadline = DateTime.UtcNow + LateCaptureWindow;
+            }
+
+            ShowMainWindow();
+        }
+        finally
+        {
+            _isCapturing = false;
+        }
+    }
+
+    // Lit le presse-papiers après une copie et en remplit le champ source.
+    private async Task LoadClipboardIntoInputAsync(TimeSpan timeout, bool skipOwnOutput)
+    {
+        var text = await _clipboardService.ReadTextAfterCopyAsync(timeout);
+        if (text.Length == 0) return;
+        if (skipOwnOutput && string.Equals(text, _clipboardService.LastWrittenText, StringComparison.Ordinal)) return;
+
+        SetInputFromClipboard(text);
+    }
+
+    private void SetInputFromClipboard(string text)
+    {
+        InputTextBox.Text = text;
+        InputTextBox.CaretIndex = text.Length;
+        StatusTextBlock.Text = "Texte du presse-papiers chargé automatiquement.";
     }
 
     // Appelée lorsqu'un second lancement de l'appli demande à réafficher l'instance existante.
     public void ShowFromAnotherInstance() => ShowMainWindow();
+
+    // Appelée par l'installeur, qui doit remplacer l'exe : sortie propre (raccourci
+    // libéré, icône retirée de la zone de notification) plutôt qu'un arrêt forcé.
+    public void ExitFromAnotherInstance() => ExitApplication();
+
+    // Bulle de la zone de notification plutôt que la barre d'état : au premier
+    // lancement, celle-ci signale l'absence de clé API, message à ne pas masquer.
+    public void NotifySetupCompleted(bool isUpdate)
+    {
+        var text = isUpdate
+            ? $"Updated to version {AppInfo.Version}."
+            : $"Installed. Open it from any application with {_config.Hotkey.Describe()}.";
+        _notifyIcon.ShowBalloonTip(5000, AppInfo.Product, text, Forms.ToolTipIcon.Info);
+    }
 
     private void ShowMainWindow()
     {
@@ -354,14 +427,23 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var input = InputTextBox.Text?.Trim();
         if (string.IsNullOrWhiteSpace(input))
         {
-            StatusTextBlock.Text = "Aucun texte à corriger.";
+            StatusTextBlock.Text = "No text to correct.";
             return;
         }
 
+        await RunAiAsync(() => _aiService.CorrectAsync(input, prompt),
+            $"Correcting via {_config.Provider}…",
+            $"Corrected via {_config.Provider}.");
+    }
+
+    // Exécute un appel IA puis le traitement commun à la correction et à la
+    // traduction : mode ASCII, copie et recollage automatiques.
+    private async Task RunAiAsync(Func<Task<string>> call, string busyStatus, string doneStatus)
+    {
         try
         {
-            SetBusy(true, $"Correction en cours via {_config.Provider}...");
-            var result = await _aiService.CorrectAsync(input, prompt);
+            SetBusy(true, busyStatus);
+            var result = await call();
             var finalText = AsciiOnlyCheckBox.IsChecked == true
                 ? _textTransformService.ToAsciiPlainText(result)
                 : _textTransformService.ToPlainUnicodeText(result);
@@ -371,12 +453,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             if (AutoCopyCheckBox.IsChecked == true)
             {
                 StatusTextBlock.Text = _clipboardService.WritePlainText(finalText)
-                    ? $"Correction terminée via {_config.Provider}. Résultat copié dans le presse-papiers."
-                    : $"Correction terminée via {_config.Provider}. Échec de la copie dans le presse-papiers.";
+                    ? $"{doneStatus} Result copied to the clipboard."
+                    : $"{doneStatus} Copy to the clipboard failed.";
             }
             else
             {
-                StatusTextBlock.Text = $"Correction terminée via {_config.Provider}.";
+                StatusTextBlock.Text = doneStatus;
             }
 
             if (AutoPasteBackCheckBox.IsChecked == true)
@@ -386,7 +468,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception ex)
         {
-            StatusTextBlock.Text = "Erreur API: " + ex.Message;
+            StatusTextBlock.Text = "API error: " + ex.Message;
         }
         finally
         {
@@ -394,12 +476,140 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
+    private async void TranslateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (LanguageComboBox.SelectedItem is not string language) return;
+
+        // Le texte corrigé tel qu'affiché, retouches manuelles comprises ; à défaut
+        // le texte source, pour une traduction directe.
+        var source = string.IsNullOrWhiteSpace(OutputTextBox.Text) ? InputTextBox.Text : OutputTextBox.Text;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            StatusTextBlock.Text = "No text to translate.";
+            return;
+        }
+
+        var instruction = _config.Prompts.Translation.Replace("{language}", language, StringComparison.Ordinal);
+        await RunAiAsync(() => _aiService.TranslateAsync(source.Trim(), instruction),
+            $"Translating into {language} via {_config.Provider}…",
+            $"Translated into {language} via {_config.Provider}.");
+    }
+
+    private void InitializeLanguageSelection()
+    {
+        // Liste absente ou vidée à la main dans appsettings.json : on repart des
+        // langues par défaut plutôt que d'afficher une liste inutilisable.
+        _config.TranslationLanguages ??= new();
+        if (_config.TranslationLanguages.Count == 0)
+        {
+            _config.TranslationLanguages.AddRange(new AppConfig().TranslationLanguages);
+        }
+
+        foreach (var language in _config.TranslationLanguages)
+        {
+            LanguageComboBox.Items.Add(language);
+        }
+
+        var index = _config.TranslationLanguages.FindIndex(
+            l => string.Equals(l, _config.TranslationLanguage, StringComparison.OrdinalIgnoreCase));
+        LanguageComboBox.SelectedIndex = Math.Max(index, 0);
+
+        // Référence vivante : les langues ajoutées disparaissent des suggestions.
+        AddLanguageBox.ExcludedLanguages = _config.TranslationLanguages;
+        UpdateRemoveLanguageButton();
+    }
+
+    private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+
+        // Pendant une suppression, SelectedItem passe par null : on ignore.
+        if (LanguageComboBox.SelectedItem is not string selected) return;
+
+        _config.TranslationLanguage = selected;
+        _configService.Save(_config);
+    }
+
+    private void AddLanguageButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Le bouton bascule : un second clic referme la zone de saisie.
+        if (AddLanguageBox.Visibility == Visibility.Visible)
+        {
+            HideAddLanguageBox();
+            return;
+        }
+
+        LanguageComboBox.Visibility = Visibility.Collapsed;
+        AddLanguageBox.Visibility = Visibility.Visible;
+        AddLanguageBox.FocusInput();
+    }
+
+    private void AddLanguageBox_LanguageSubmitted(object? sender, string language)
+    {
+        var existing = _config.TranslationLanguages.FirstOrDefault(
+            l => string.Equals(l, language, StringComparison.OrdinalIgnoreCase));
+
+        if (existing is null)
+        {
+            _config.TranslationLanguages.Add(language);
+            LanguageComboBox.Items.Add(language);
+            LanguageComboBox.SelectedItem = language;
+            StatusTextBlock.Text = _configService.Save(_config)
+                ? $"{language} added to the list."
+                : $"{language} added, but it will not be kept after a restart.";
+        }
+        else
+        {
+            LanguageComboBox.SelectedItem = existing;
+            StatusTextBlock.Text = $"{existing} is already in the list.";
+        }
+
+        HideAddLanguageBox();
+        UpdateRemoveLanguageButton();
+
+        // Enchaînement au clavier : Entrée pour ajouter, Entrée pour traduire.
+        TranslateButton.Focus();
+    }
+
+    private void AddLanguageBox_Cancelled(object? sender, EventArgs e)
+    {
+        HideAddLanguageBox();
+        AddLanguageButton.Focus();
+    }
+
+    private void HideAddLanguageBox()
+    {
+        AddLanguageBox.Reset();
+        AddLanguageBox.Visibility = Visibility.Collapsed;
+        LanguageComboBox.Visibility = Visibility.Visible;
+    }
+
+    private void RemoveLanguageButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (LanguageComboBox.SelectedItem is not string selected || _config.TranslationLanguages.Count <= 1) return;
+
+        var index = LanguageComboBox.SelectedIndex;
+        _config.TranslationLanguages.RemoveAll(l => string.Equals(l, selected, StringComparison.OrdinalIgnoreCase));
+        LanguageComboBox.Items.Remove(selected);
+        LanguageComboBox.SelectedIndex = Math.Min(index, LanguageComboBox.Items.Count - 1);
+
+        StatusTextBlock.Text = _configService.Save(_config)
+            ? $"{selected} removed from the list."
+            : $"{selected} removed, but it will be back after a restart.";
+        UpdateRemoveLanguageButton();
+    }
+
+    // La dernière langue ne peut pas être supprimée : la traduction n'aurait plus de cible.
+    private void UpdateRemoveLanguageButton() =>
+        RemoveLanguageButton.IsEnabled = _config.TranslationLanguages.Count > 1;
+
     private void SetBusy(bool busy, string status)
     {
         StrictCorrectionButton.IsEnabled = !busy;
         RewriteLightButton.IsEnabled = !busy;
         ProfessionalButton.IsEnabled = !busy;
         CustomButton.IsEnabled = !busy;
+        TranslateButton.IsEnabled = !busy;
         PasteClipboardButton.IsEnabled = !busy;
         CopyResultButton.IsEnabled = !busy;
         PasteBackButton.IsEnabled = !busy;

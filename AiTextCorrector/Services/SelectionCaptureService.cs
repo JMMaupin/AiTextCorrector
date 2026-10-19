@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Threading.Tasks;
 using AiTextCorrector.Interop;
 
 namespace AiTextCorrector.Services;
@@ -28,8 +28,12 @@ public sealed class SelectionCaptureService
     /// <summary>
     /// Tente de copier la sélection courante. Renvoie true si le presse-papiers a
     /// effectivement changé — c'est-à-dire s'il y avait bien une sélection.
+    ///
+    /// Les attentes sont asynchrones : le thread UI continue de traiter ses
+    /// messages, dont WM_CLIPBOARDUPDATE. Avec des Thread.Sleep, une copie arrivée
+    /// après le délai restait bloquée dans la file et n'était jamais exploitée.
     /// </summary>
-    public bool TryCopySelection()
+    public async Task<bool> TryCopySelectionAsync()
     {
         // Le compteur de séquence dit si une copie a eu lieu, sans qu'on ait à
         // comparer les contenus : si rien n'était sélectionné, Ctrl+C ne fait rien
@@ -37,7 +41,7 @@ public sealed class SelectionCaptureService
         // surtout pas prendre pour la sélection de l'utilisateur.
         var sequenceBefore = NativeMethods.GetClipboardSequenceNumber();
 
-        ReleaseHotkeyModifiers();
+        await ReleaseHotkeyModifiersAsync();
         SendCopy();
 
         var deadline = Environment.TickCount64 + CopyTimeoutMs;
@@ -48,7 +52,7 @@ public sealed class SelectionCaptureService
                 return true;
             }
 
-            Thread.Sleep(PollIntervalMs);
+            await Task.Delay(PollIntervalMs);
         }
 
         return false;
@@ -58,12 +62,12 @@ public sealed class SelectionCaptureService
     /// Au déclenchement du raccourci, l'utilisateur tient encore Ctrl et Alt.
     /// Envoyer Ctrl+C dans cet état produirait Ctrl+Alt+C, qui ne copie pas.
     /// </summary>
-    private static void ReleaseHotkeyModifiers()
+    private static async Task ReleaseHotkeyModifiersAsync()
     {
         var deadline = Environment.TickCount64 + ModifierReleaseTimeoutMs;
         while (Environment.TickCount64 < deadline && AnyModifierHeld())
         {
-            Thread.Sleep(PollIntervalMs);
+            await Task.Delay(PollIntervalMs);
         }
 
         if (!AnyModifierHeld())
@@ -97,7 +101,7 @@ public sealed class SelectionCaptureService
         }
 
         NativeMethods.SendKeys(inputs.ToArray());
-        Thread.Sleep(PollIntervalMs);
+        await Task.Delay(PollIntervalMs);
     }
 
     private static bool AnyModifierHeld() =>

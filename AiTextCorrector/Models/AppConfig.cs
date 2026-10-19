@@ -6,7 +6,15 @@ public class AppConfig
     public string Model { get; set; } = "gpt-4.1-mini";
     public string AnthropicModel { get; set; } = "claude-sonnet-4-6";
     public string GlmModel { get; set; } = "glm-4.6";
-    public string GroqModel { get; set; } = "llama-3.3-70b-versatile";
+    public string GroqModel { get; set; } = "openai/gpt-oss-120b";
+
+    // Langues cibles proposées pour la traduction, dans l'ordre d'affichage
+    // (noms anglais, transmis tels quels au modèle).
+    public List<string> TranslationLanguages { get; set; } = new() { "English", "Spanish" };
+
+    // Dernière langue choisie, resélectionnée au démarrage.
+    public string TranslationLanguage { get; set; } = "English";
+
     public HotkeyConfig Hotkey { get; set; } = new();
     public PromptSet Prompts { get; set; } = new();
 }
@@ -39,4 +47,7 @@ public class PromptSet
     public string CorrectionAndRewrite { get; set; } = "Corrige l'orthographe, la grammaire et la ponctuation puis reformule légèrement pour rendre le texte plus fluide et naturel. Conserve le sens d'origine. Retourne uniquement le texte final, sans commentaire ni guillemets.";
     public string ProfessionalStyle { get; set; } = "Corrige puis reformule dans un style professionnel, clair, direct et concis. Conserve les informations importantes et la langue d'origine. Retourne uniquement le texte final, sans commentaire ni guillemets.";
     public string CustomPrompt { get; set; } = "Corrige ce texte en conservant sa langue d'origine. Retourne uniquement le texte final.";
+
+    // {language} est remplacé par la langue cible choisie dans l'interface.
+    public string Translation { get; set; } = "Traduis ce texte vers la langue suivante : {language}. Conserve le sens, le ton, la mise en forme (listes, retours ligne) et les noms propres. Retourne uniquement la traduction, sans commentaire ni guillemets, Aucun '—'.";
 }

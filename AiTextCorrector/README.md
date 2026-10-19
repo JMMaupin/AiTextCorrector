@@ -99,6 +99,26 @@ L'exe est généré dans `bin/Publish/Portable/AiTextCorrector.exe`.
 - Le seul `.exe` suffit à distribuer l'application (le fichier `appsettings.json`
   est recréé au premier lancement et les clés API sont stockées dans le registre).
 
+## Installation et mise à jour sur un poste
+
+L'exe publié s'installe et se met à jour lui-même ; il suffit de le lancer :
+
+- **Pas encore installé** : une fenêtre propose l'installation (option « Start with
+  Windows ») ou un lancement sans installation. L'installation se fait pour
+  l'utilisateur, sans droits administrateur, dans
+  `%LOCALAPPDATA%\Programs\AiTextCorrector`, avec un raccourci dans le menu
+  Démarrer et une entrée dans « Applications installées ».
+- **Déjà installé, exe plus récent** (ou même version mais autre build) : mise à
+  jour automatique. L'instance en cours est fermée, l'exe remplacé, la nouvelle
+  version relancée ; une bulle de notification le confirme.
+- **Déjà installé, exe identique ou plus ancien** : la version installée est
+  lancée, jamais rétrogradée.
+- **Désinstallation** : depuis « Applications installées » de Windows (ou
+  `AiTextCorrector.exe --uninstall`). Les réglages et clés API sont conservés,
+  sauf demande contraire.
+
+Les builds de développement (`dotnet run`, `bin\Debug`) ne sont pas concernés.
+
 ## Flux d'utilisation
 
 1. Choisis le provider dans la liste.
@@ -108,6 +128,20 @@ L'exe est généré dans `bin/Publish/Portable/AiTextCorrector.exe`.
 5. Le résultat s'affiche à droite.
 6. Le texte corrigé est copié automatiquement dans le presse-papiers en texte brut.
 7. Si l'option est activée, il est recollé dans l'application d'origine.
+
+## Traduction
+
+- Choisis la langue cible dans la liste à côté de **Translate**, puis clique sur **Translate** :
+  le texte corrigé (ou, à défaut, le texte source) est traduit et remplace le résultat.
+  Copie et recollage automatiques s'appliquent comme pour une correction.
+- **+** ajoute une langue : tape les premières lettres de son nom en anglais
+  (« ger »), dans la langue elle-même (« deu ») ou dans celle des formats régionaux
+  de Windows (« all »), puis Entrée ou clic sur une suggestion. Un nom absent du
+  catalogue est accepté tel quel (« Brazilian Portuguese »).
+- La corbeille retire la langue sélectionnée (la dernière ne peut pas l'être).
+- Liste et dernière langue choisie sont mémorisées (`TranslationLanguages`,
+  `TranslationLanguage`) ; le prompt se règle dans `Prompts.Translation`, où
+  `{language}` est remplacé par la langue cible.
 
 ## Notes
 

@@ -76,11 +76,9 @@ echo.
 echo   Seul AiTextCorrector.exe est necessaire : tout est embarque dedans.
 echo   Les autres fichiers du dossier sont des sous-produits du SDK, a ignorer.
 echo.
-echo   Pour installer, dans une invite ADMINISTRATEUR :
-echo     md "%%ProgramFiles%%\AiTextCorrector" 2^>nul
-echo     copy /y "%OUTEXE%" "%%ProgramFiles%%\AiTextCorrector\"
-echo.
-echo   Fermer l'application avant la copie, sinon le fichier est verrouille.
+echo   Installation : lancer cet exe sur le PC cible. Il propose de
+echo   s'installer pour l'utilisateur ^(sans droits administrateur^), ou met
+echo   a jour la version deja installee s'il est plus recent.
 echo.
 
 set "EXITCODE=0"

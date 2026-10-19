@@ -14,7 +14,7 @@ namespace AiTextCorrector.Services;
 /// </summary>
 public class ApiKeyStore
 {
-    private const string KeyPath = @"Software\AiTextCorrector";
+    internal const string KeyPath = @"Software\AiTextCorrector";
 
     private const string OpenAiValueName = "OpenAiApiKey";
     private const string AnthropicValueName = "AnthropicApiKey";

@@ -11,17 +11,23 @@ namespace AiTextCorrector;
 /// </summary>
 internal static class AppInfo
 {
-    public static string DisplayName { get; } = BuildDisplayName();
+    public static string Product { get; } = ReadProduct();
 
-    private static string BuildDisplayName()
+    /// <summary>Version SemVer, statut de pré-version compris (« 1.2.0-beta »).</summary>
+    public static string Version { get; } = ReadVersion();
+
+    public static string DisplayName { get; } =
+        string.IsNullOrWhiteSpace(Version) ? Product : $"{Product} v{Version}";
+
+    private static string ReadProduct()
+    {
+        var product = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyProductAttribute>()?.Product;
+        return string.IsNullOrWhiteSpace(product) ? "AI Text Corrector" : product;
+    }
+
+    private static string ReadVersion()
     {
         var assembly = Assembly.GetEntryAssembly();
-        var product = assembly?.GetCustomAttribute<AssemblyProductAttribute>()?.Product;
-
-        if (string.IsNullOrWhiteSpace(product))
-        {
-            product = "AI Text Corrector";
-        }
 
         // AssemblyInformationalVersion porte la version SemVer complète, suffixe de
         // pré-version compris (« 1.2.0-beta »), là où AssemblyVersion la tronque en
@@ -37,6 +43,6 @@ internal static class AppInfo
             version = assembly?.GetName().Version?.ToString(3);
         }
 
-        return string.IsNullOrWhiteSpace(version) ? product : $"{product} v{version}";
+        return version ?? string.Empty;
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace AiTextCorrector.Services;
@@ -59,6 +60,46 @@ public class ClipboardService
         }
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// Lit le texte juste après une copie dont on sait qu'elle a eu lieu, en
+    /// insistant tant qu'il est absent, jusqu'à <paramref name="timeout"/>.
+    ///
+    /// Contrairement à <see cref="TryReadText"/>, une absence de texte n'est pas
+    /// définitive : Windows signale le changement dès que l'application source VIDE
+    /// le presse-papiers, avant qu'elle y dépose son texte. Lu à cet instant, il
+    /// paraît vide — et la sélection, pourtant bien copiée, était perdue.
+    /// </summary>
+    public async Task<string> ReadTextAfterCopyAsync(TimeSpan timeout)
+    {
+        var deadline = Environment.TickCount64 + (long)timeout.TotalMilliseconds;
+        while (true)
+        {
+            try
+            {
+                var text = Clipboard.GetText(TextDataFormat.UnicodeText);
+                if (text.Length > 0)
+                {
+                    return text;
+                }
+            }
+            catch (ExternalException)
+            {
+                // Presse-papiers encore verrouillé par l'application source.
+            }
+            catch
+            {
+                return string.Empty;
+            }
+
+            if (Environment.TickCount64 >= deadline)
+            {
+                return string.Empty;
+            }
+
+            await Task.Delay(RetryDelayMs);
+        }
     }
 
     /// <summary>Écrit du texte brut dans le presse-papiers. Renvoie false en cas d'échec.</summary>

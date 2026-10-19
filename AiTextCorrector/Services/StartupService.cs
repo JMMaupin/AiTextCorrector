@@ -13,10 +13,6 @@ public class StartupService
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "AiTextCorrector";
 
-    // Chemin complet de l'exécutable actuel, entre guillemets au cas où il
-    // contiendrait des espaces.
-    private static string ExecutablePath => "\"" + Environment.ProcessPath + "\"";
-
     public bool IsEnabled()
     {
         try
@@ -34,8 +30,10 @@ public class StartupService
     /// <summary>
     /// Active ou désactive le lancement au démarrage. Renvoie l'état effectif
     /// après l'opération (utile pour rafraîchir la coche du menu).
+    /// <paramref name="executablePath"/> : exe à lancer, par défaut l'exe courant.
+    /// L'installeur y passe l'exe installé, lui-même tournant depuis un autre endroit.
     /// </summary>
-    public bool SetEnabled(bool enabled)
+    public bool SetEnabled(bool enabled, string? executablePath = null)
     {
         try
         {
@@ -47,7 +45,9 @@ public class StartupService
 
             if (enabled)
             {
-                key.SetValue(ValueName, ExecutablePath, RegistryValueKind.String);
+                // Entre guillemets, au cas où le chemin contiendrait des espaces.
+                var path = executablePath ?? Environment.ProcessPath;
+                key.SetValue(ValueName, "\"" + path + "\"", RegistryValueKind.String);
             }
             else
             {

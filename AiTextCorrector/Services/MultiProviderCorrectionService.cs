@@ -27,11 +27,18 @@ public class MultiProviderCorrectionService
     // Endpoint OpenAI-compatible de Groq.
     private const string GroqEndpoint = "https://api.groq.com/openai/v1";
 
-    public async Task<string> CorrectAsync(string inputText, string prompt)
+    public Task<string> CorrectAsync(string inputText, string prompt) =>
+        CompleteAsync($"Instruction: {prompt}\n\nTexte à corriger:\n{inputText}");
+
+    /// <summary><paramref name="instruction"/> : prompt de traduction, langue cible déjà substituée.</summary>
+    public Task<string> TranslateAsync(string text, string instruction) =>
+        CompleteAsync($"Instruction: {instruction}\n\nTexte à traduire:\n{text}");
+
+    private async Task<string> CompleteAsync(string userMessage)
     {
         if (string.Equals(_config.Provider, "Anthropic", StringComparison.OrdinalIgnoreCase))
         {
-            return await CorrectWithAnthropicAsync(inputText, prompt);
+            return await CompleteWithAnthropicAsync(userMessage);
         }
 
         if (string.Equals(_config.Provider, "GLM", StringComparison.OrdinalIgnoreCase))
@@ -44,7 +51,7 @@ public class MultiProviderCorrectionService
                 throw new InvalidOperationException("Clé GLM absente. Renseigne-la dans la fenêtre ou via AITEXTCORRECTOR_GLM_API_KEY.");
             }
 
-            return await CompleteWithOpenAiCompatibleAsync(_config.GlmModel, glmKey, GlmEndpoint, inputText, prompt, "GLM");
+            return await CompleteWithOpenAiCompatibleAsync(_config.GlmModel, glmKey, GlmEndpoint, userMessage, "GLM");
         }
 
         if (string.Equals(_config.Provider, "Groq", StringComparison.OrdinalIgnoreCase))
@@ -56,7 +63,7 @@ public class MultiProviderCorrectionService
                 throw new InvalidOperationException("Clé Groq absente. Renseigne-la dans la fenêtre ou via AITEXTCORRECTOR_GROQ_API_KEY.");
             }
 
-            return await CompleteWithOpenAiCompatibleAsync(_config.GroqModel, groqKey, GroqEndpoint, inputText, prompt, "Groq");
+            return await CompleteWithOpenAiCompatibleAsync(_config.GroqModel, groqKey, GroqEndpoint, userMessage, "Groq");
         }
 
         var openAiKey = _keyStore.GetOpenAiKey();
@@ -65,13 +72,13 @@ public class MultiProviderCorrectionService
             throw new InvalidOperationException("Clé OpenAI absente. Renseigne-la dans la fenêtre ou via OPENAI_API_KEY.");
         }
 
-        return await CompleteWithOpenAiCompatibleAsync(_config.Model, openAiKey, endpoint: null, inputText, prompt, "OpenAI");
+        return await CompleteWithOpenAiCompatibleAsync(_config.Model, openAiKey, endpoint: null, userMessage, "OpenAI");
     }
 
     // Appelle un service compatible avec l'API OpenAI (OpenAI lui-même ou GLM/Z.ai
     // selon l'endpoint fourni).
     private static async Task<string> CompleteWithOpenAiCompatibleAsync(
-        string model, string apiKey, string? endpoint, string inputText, string prompt, string providerLabel)
+        string model, string apiKey, string? endpoint, string userMessage, string providerLabel)
     {
         ChatClient client;
         if (string.IsNullOrWhiteSpace(endpoint))
@@ -84,8 +91,7 @@ public class MultiProviderCorrectionService
             client = new ChatClient(model, new ApiKeyCredential(apiKey), options);
         }
 
-        ChatCompletion completion = await client.CompleteChatAsync(
-            new UserChatMessage($"Instruction: {prompt}\n\nTexte à corriger:\n{inputText}"));
+        ChatCompletion completion = await client.CompleteChatAsync(new UserChatMessage(userMessage));
         var text = completion.Content.Count > 0 ? completion.Content[0].Text : string.Empty;
 
         if (string.IsNullOrWhiteSpace(text))
@@ -96,7 +102,7 @@ public class MultiProviderCorrectionService
         return text.Trim();
     }
 
-    private async Task<string> CorrectWithAnthropicAsync(string inputText, string prompt)
+    private async Task<string> CompleteWithAnthropicAsync(string userMessage)
     {
         var apiKey = _keyStore.GetAnthropicKey();
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -114,7 +120,7 @@ public class MultiProviderCorrectionService
                 new MessageParam
                 {
                     Role = Role.User,
-                    Content = $"Instruction: {prompt}\n\nTexte à corriger:\n{inputText}"
+                    Content = userMessage
                 }
             ]
         };

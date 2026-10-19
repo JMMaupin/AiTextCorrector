@@ -1,0 +1,28 @@
+<UserControl x:Class="AiTextCorrector.Controls.LanguageSuggestBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <Grid>
+        <ui:TextBox x:Name="QueryTextBox" PlaceholderText="Type a language…"
+                    ToolTip="Type the first letters, then Enter or click a suggestion"
+                    TextChanged="QueryTextBox_TextChanged"
+                    PreviewKeyDown="QueryTextBox_PreviewKeyDown"
+                    LostKeyboardFocus="QueryTextBox_LostKeyboardFocus"/>
+
+        <!-- StaysOpen="True" : avec False, le clic qui ferme le popup est avalé, et le
+             bouton visé (Translate…) demanderait un second clic. La fermeture est
+             donc gérée à la main (perte de focus, Échap, validation). -->
+        <Popup x:Name="SuggestionPopup" PlacementTarget="{Binding ElementName=QueryTextBox}"
+               Placement="Bottom" StaysOpen="True" AllowsTransparency="True">
+            <Border MinWidth="{Binding ActualWidth, ElementName=QueryTextBox}"
+                    Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                    BorderBrush="{DynamicResource SurfaceStrokeColorFlyoutBrush}"
+                    BorderThickness="1" CornerRadius="6" Padding="4" Margin="0,4,0,0">
+                <!-- Liste non focalisable : le focus reste dans la zone de saisie, qui
+                     pilote la sélection au clavier (flèches, Entrée). -->
+                <ListBox x:Name="SuggestionList" MaxHeight="280" Focusable="False"
+                         PreviewMouseLeftButtonDown="SuggestionList_PreviewMouseLeftButtonDown"/>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

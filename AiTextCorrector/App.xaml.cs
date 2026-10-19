@@ -1,7 +1,9 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
+using AiTextCorrector.Setup;
 
 namespace AiTextCorrector;
 
@@ -11,9 +13,13 @@ public partial class App : Application
     private const string InstanceMutexName = @"Local\AiTextCorrector_SingleInstance_Mutex";
     private const string ShowEventName = @"Local\AiTextCorrector_SingleInstance_Show";
 
+    // Demande de fermeture, envoyée par l'installeur avant de remplacer l'exe.
+    internal const string ExitEventName = @"Local\AiTextCorrector_SingleInstance_Exit";
+
     private Mutex? _instanceMutex;
     private bool _ownsMutex;
     private EventWaitHandle? _showEvent;
+    private EventWaitHandle? _exitEvent;
     private MainWindow? _mainWindow;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -25,6 +31,23 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
 
         base.OnStartup(e);
+        Wpf.Ui.Appearance.ApplicationThemeManager.ApplySystemTheme();
+
+        // Installation, mise à jour, désinstallation : AVANT le contrôle d'instance
+        // unique. L'exe lancé n'est pas forcément l'exe installé, et doit pouvoir
+        // fermer l'instance en cours pour la remplacer.
+        try
+        {
+            if (SetupFlow.HandleStartup(e.Args))
+            {
+                Shutdown();
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            ReportError(ex, "Installation check failed.");
+        }
 
         _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out bool createdNew);
         _ownsMutex = createdNew;
@@ -53,18 +76,28 @@ public partial class App : Application
         // pendant l'initialisation doit pouvoir nous signaler, sinon elle se
         // termine sans rien afficher.
         _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
-        StartShowRequestListener();
+        _exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ExitEventName);
+        StartInstanceRequestListener();
 
-        // Première instance : applique le thème et crée la fenêtre.
+        // Première instance : crée la fenêtre.
         try
         {
-            Wpf.Ui.Appearance.ApplicationThemeManager.ApplySystemTheme();
             _mainWindow = new MainWindow();
 
             // L'UI est visible à chaque lancement. La réduction (–) ou la croix (✕)
             // l'envoie dans la zone de notification ; relancer l'application la
             // réaffiche. Show() force aussi le cycle Loaded qui enregistre le hotkey.
             _mainWindow.Show();
+
+            // Lancée par l'installeur : confirmation discrète de l'opération.
+            if (e.Args.Contains(SetupFlow.InstalledArgument, StringComparer.OrdinalIgnoreCase))
+            {
+                _mainWindow.NotifySetupCompleted(isUpdate: false);
+            }
+            else if (e.Args.Contains(SetupFlow.UpdatedArgument, StringComparer.OrdinalIgnoreCase))
+            {
+                _mainWindow.NotifySetupCompleted(isUpdate: true);
+            }
         }
         catch (Exception ex)
         {
@@ -105,28 +138,39 @@ public partial class App : Application
         }
     }
 
-    private void StartShowRequestListener()
+    // Écoute les demandes des autres processus : réafficher la fenêtre (second
+    // lancement) ou quitter (installeur sur le point de remplacer l'exe).
+    private void StartInstanceRequestListener()
     {
-        var handle = _showEvent!;
+        var handles = new WaitHandle[] { _showEvent!, _exitEvent! };
         var thread = new Thread(() =>
         {
             while (true)
             {
+                int signaled;
                 try
                 {
-                    handle.WaitOne();
+                    signaled = WaitHandle.WaitAny(handles);
                 }
                 catch
                 {
-                    break; // handle disposé à la fermeture de l'application
+                    break; // handles disposés à la fermeture de l'application
                 }
 
-                Dispatcher.Invoke(() => _mainWindow?.ShowFromAnotherInstance());
+                if (signaled == 0)
+                {
+                    Dispatcher.Invoke(() => _mainWindow?.ShowFromAnotherInstance());
+                }
+                else
+                {
+                    Dispatcher.Invoke(() => _mainWindow?.ExitFromAnotherInstance());
+                    break;
+                }
             }
         })
         {
             IsBackground = true,
-            Name = "SingleInstanceShowListener"
+            Name = "SingleInstanceRequestListener"
         };
         thread.Start();
     }
@@ -134,6 +178,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _showEvent?.Dispose();
+        _exitEvent?.Dispose();
 
         if (_ownsMutex)
         {

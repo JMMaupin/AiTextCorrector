@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using AiTextCorrector.Models;
@@ -18,7 +19,7 @@ public class ConfigService
     /// démarre avec C:\Windows\System32 comme répertoire courant, et le dossier
     /// d'installation (Program Files) n'est de toute façon pas inscriptible.
     /// </summary>
-    private static string ConfigDirectory => Path.Combine(
+    internal static string ConfigDirectory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "AiTextCorrector");
 
@@ -37,9 +38,31 @@ public class ConfigService
         }
     }
 
+    /// <summary>
+    /// Modèles Groq retirés (https://console.groq.com/docs/deprecations) et leur
+    /// remplaçant. Le nom du modèle est matérialisé dans appsettings.json : sans
+    /// cette migration, une config existante continuerait d'appeler un modèle coupé
+    /// (l'appel échoue alors que la clé est valide).
+    /// </summary>
+    private static readonly Dictionary<string, string> RetiredGroqModels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["llama-3.3-70b-versatile"] = "openai/gpt-oss-120b",
+        ["llama-3.1-8b-instant"] = "openai/gpt-oss-20b",
+        ["qwen/qwen3-32b"] = "openai/gpt-oss-120b",
+        ["qwen/qwen3.6-27b"] = "openai/gpt-oss-120b",
+        ["meta-llama/llama-4-scout-17b-16e-instruct"] = "openai/gpt-oss-120b",
+        ["meta-llama/llama-4-maverick-17b-128e-instruct"] = "openai/gpt-oss-120b",
+        ["moonshotai/kimi-k2-instruct-0905"] = "openai/gpt-oss-120b",
+    };
+
     public AppConfig Load()
     {
         var config = ReadFrom(ConfigPath) ?? ReadFrom(LegacyConfigPath) ?? new AppConfig();
+
+        if (RetiredGroqModels.TryGetValue(config.GroqModel ?? string.Empty, out var replacement))
+        {
+            config.GroqModel = replacement;
+        }
 
         // Matérialise la configuration (et la migration depuis l'ancien emplacement)
         // dans le dossier utilisateur. Un échec n'est pas bloquant : on continue en
