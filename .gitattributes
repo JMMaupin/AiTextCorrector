@@ -1,4 +1,0 @@
-# Les scripts cmd exigent des fins de ligne CRLF : en LF, cmd.exe peut ne plus
-# trouver les etiquettes (goto, call :label).
-*.cmd text eol=crlf
-*.bat text eol=crlf
