@@ -160,7 +160,7 @@ echo   Version  : %CURRENT% -^> %VER%  ^(tag %TAG%^)
 rem Ligne ecrite par git lui-meme : un sujet de commit contenant ^> ou ^& serait
 rem interprete par cmd s'il passait par une variable.
 git log -1 --format="  Base     : %%h %%s"
-echo   Fichiers : AiTextCorrector.exe, AiTextCorrector.exe.sha256
+echo   Fichiers : AiTextCorrector.exe, AiTextCorrector.exe.sha256, LICENSE, THIRD-PARTY-NOTICES.md
 echo.
 echo   La release sera PUBLIQUE si le depot est public.
 echo.
@@ -198,12 +198,14 @@ if errorlevel 1 (
     goto :fail
 )
 
-gh release create "%TAG%" "%OUTEXE%" "%OUTEXE%.sha256" --title "AI Text Corrector %VER%" --notes-file "%NOTES%" --generate-notes --verify-tag
+rem La licence et les mentions tierces accompagnent l'exe : la licence MIT des
+rem composants embarques impose de les fournir avec toute copie distribuee.
+gh release create "%TAG%" "%OUTEXE%" "%OUTEXE%.sha256" LICENSE THIRD-PARTY-NOTICES.md --title "AI Text Corrector %VER%" --notes-file "%NOTES%" --generate-notes --verify-tag
 if errorlevel 1 (
     echo.
     echo ERREUR : la release n'a pas ete creee, mais le tag %TAG% est deja sur GitHub.
     echo Pour reessayer, relance seulement :
-    echo   gh release create %TAG% "%OUTEXE%" "%OUTEXE%.sha256" --title "AI Text Corrector %VER%" --generate-notes --verify-tag
+    echo   gh release create %TAG% "%OUTEXE%" "%OUTEXE%.sha256" LICENSE THIRD-PARTY-NOTICES.md --title "AI Text Corrector %VER%" --generate-notes --verify-tag
     goto :fail
 )
 

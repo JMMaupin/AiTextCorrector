@@ -373,8 +373,8 @@ Publishes a GitHub release. Commit and push your work first, then run it. The sc
    version, and computes its SHA-256 checksum;
 5. shows a summary and asks for confirmation;
 6. commits the version change, creates the tag, pushes the branch and the tag together, then
-   creates the GitHub release with `AiTextCorrector.exe`, `AiTextCorrector.exe.sha256` and
-   generated release notes.
+   creates the GitHub release with `AiTextCorrector.exe`, `AiTextCorrector.exe.sha256`,
+   `LICENSE`, `THIRD-PARTY-NOTICES.md` and generated release notes.
 
 If you cancel, or if a step fails before the version commit, the project file is restored and
 nothing is published.
@@ -387,6 +387,8 @@ latest version:
 
 ```text
 AiTextCorrector.sln
+LICENSE                      MIT License
+THIRD-PARTY-NOTICES.md       Licenses of the bundled open-source components
 publish.cmd                  Builds the single-file executable (version +0.0.1)
 release.cmd                  Publishes a GitHub release
 scripts/bump-version.ps1     Raises the version in the project file
@@ -407,5 +409,10 @@ AiTextCorrector/
 
 ## License
 
-No license has been chosen for this project yet. Until one is added, all rights are reserved:
-you may read the code, but not reuse or redistribute it without permission.
+AI Text Corrector is released under the [MIT License](LICENSE): you may use, copy, modify,
+merge, publish, distribute, sublicense and sell it, including in closed-source products, as long
+as the copyright notice and the license text are kept. It comes with no warranty.
+
+The executable bundles open-source components that are also under the MIT License; their
+notices are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Both files are attached
+to every release.

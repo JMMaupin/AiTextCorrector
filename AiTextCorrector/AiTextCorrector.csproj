@@ -14,6 +14,8 @@
          AppInfo plutôt que de les coder en dur. Alimente aussi les propriétés du
          fichier .exe et les rapports d'erreur Windows, qui indiquaient 1.0.0.0. -->
     <Product>AI Text Corrector</Product>
+    <!-- Licence MIT (fichier LICENSE) ; visible dans les propriétés de l'exe. -->
+    <Copyright>Copyright (c) 2026 JMMaupin</Copyright>
     <!-- SemVer MAJEUR.MINEUR.CORRECTIF, incrémenté par les scripts (scripts\bump-version.ps1) :
          - publish.cmd : +0.0.1 à chaque exe de test publié (corrections, mises au point) ;
          - release.cmd : +0.0.1 pour une release de correctifs, +0.1.0 pour une release
