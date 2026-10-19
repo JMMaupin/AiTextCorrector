@@ -12,5 +12,13 @@ appsettings.json
 *.user
 *.suo
 
+# Réglages de l'éditeur (propres au poste)
+.vscode/
+
+# Scripts de publication et de release : outillage personnel, hors dépôt
+publish.cmd
+release.cmd
+scripts/
+
 # Réglages locaux de Claude Code (propres au poste)
 .claude/settings.local.json

@@ -38,7 +38,7 @@ select text  ->  press the shortcut  ->  click a correction mode  ->  paste back
 - [Where your data goes](#where-your-data-goes)
 - [Troubleshooting](#troubleshooting)
 - [Building from source](#building-from-source)
-- [Publishing and releasing](#publishing-and-releasing)
+- [Publishing](#publishing)
 - [Project structure](#project-structure)
 - [License](#license)
 
@@ -328,59 +328,31 @@ and API keys as the installed application.
 The application is a WPF (.NET 8) program using [WPF-UI](https://github.com/lepoco/wpfui) for
 the Fluent design, and the official OpenAI and Anthropic .NET SDKs.
 
-## Publishing and releasing
+## Publishing
 
-### Versioning
-
-The version follows [Semantic Versioning](https://semver.org) (`MAJOR.MINOR.PATCH`). Its single
-source is `<Version>` in `AiTextCorrector/AiTextCorrector.csproj`, and the scripts below raise it
-for you through `scripts/bump-version.ps1`; there is no need to edit it by hand.
-
-| Increment | When | Example | Done by |
-| --- | --- | --- | --- |
-| `+0.0.1` | Each test executable published during development: fixes, adjustments | 1.2.1 → 1.2.2 | `publish.cmd` |
-| `+0.0.1` | Release containing fixes only | 1.2.2 → 1.2.3 | `release.cmd`, choice **C** |
-| `+0.1.0` | Release with new features | 1.2.3 → 1.3.0 | `release.cmd`, choice **N** |
-| `+1.0.0` | Release with a major change, such as a redesigned main window | 1.3.0 → 2.0.0 | `release.cmd`, choice **M** |
-
-Each release therefore gets a number never used by a test build. A pre-release suffix such as
-`-beta` is dropped at the next increment.
-
-### `publish.cmd`
-
-Builds the distributable executable after raising the version by `0.0.1`:
+To build the distributable executable yourself:
 
 ```bat
-publish.cmd
+dotnet publish AiTextCorrector/AiTextCorrector.csproj -c Release /p:PublishProfile=Portable
 ```
 
 The result is `AiTextCorrector\bin\Publish\Portable\AiTextCorrector.exe`: a single
 framework-dependent file for Windows x64 (about 16 MB) that needs the .NET 8 Desktop Runtime.
-This one file is all you need to distribute; it installs and updates itself. Commit the
-version change together with your code changes.
+This one file is all you need to distribute; it installs and updates itself.
 
-`publish.cmd /nobump` publishes without changing the version; `release.cmd` uses it.
+### Versioning
 
-### `release.cmd`
+The version follows [Semantic Versioning](https://semver.org) (`MAJOR.MINOR.PATCH`); its single
+source is `<Version>` in `AiTextCorrector/AiTextCorrector.csproj`.
 
-Publishes a GitHub release. Commit and push your work first, then run it. The script:
+| Increment | When |
+| --- | --- |
+| `+0.0.1` | Fixes and adjustments |
+| `+0.1.0` | Release with new features |
+| `+1.0.0` | Major change, such as a redesigned main window |
 
-1. checks that `dotnet`, `git` and `gh` are available and that `gh` is logged in;
-2. refuses to continue if there are uncommitted changes or unpushed commits;
-3. asks for the kind of release (**C**orrections, **N**ew features, **M**ajor) and shows the
-   resulting version, then checks that its tag `v<version>` does not exist yet;
-4. writes the version, runs `publish.cmd /nobump`, checks that the executable carries that
-   version, and computes its SHA-256 checksum;
-5. shows a summary and asks for confirmation;
-6. commits the version change, creates the tag, pushes the branch and the tag together, then
-   creates the GitHub release with `AiTextCorrector.exe`, `AiTextCorrector.exe.sha256`,
-   `LICENSE`, `THIRD-PARTY-NOTICES.md` and generated release notes.
-
-If you cancel, or if a step fails before the version commit, the project file is restored and
-nothing is published.
-
-The executable keeps the same file name in every release, so this link always downloads the
-latest version:
+Every release attaches `AiTextCorrector.exe` under the same file name, so this link always
+downloads the latest version:
 `https://github.com/JMMaupin/AiTextCorrector/releases/latest/download/AiTextCorrector.exe`
 
 ## Project structure
@@ -389,9 +361,6 @@ latest version:
 AiTextCorrector.sln
 LICENSE                      MIT License
 THIRD-PARTY-NOTICES.md       Licenses of the bundled open-source components
-publish.cmd                  Builds the single-file executable (version +0.0.1)
-release.cmd                  Publishes a GitHub release
-scripts/bump-version.ps1     Raises the version in the project file
 docs/images/                 Screenshots used in this README
 AiTextCorrector/
   App.xaml(.cs)              Startup, single instance, install and update check
