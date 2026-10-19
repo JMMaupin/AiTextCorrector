@@ -14,8 +14,11 @@
          AppInfo plutôt que de les coder en dur. Alimente aussi les propriétés du
          fichier .exe et les rapports d'erreur Windows, qui indiquaient 1.0.0.0. -->
     <Product>AI Text Corrector</Product>
-    <!-- SemVer : les trois composants numériques sont obligatoires, le statut de
-         pré-version se met après un tiret. Retirer « -beta » au moment de la sortie. -->
+    <!-- SemVer MAJEUR.MINEUR.CORRECTIF, incrémenté par les scripts (scripts\bump-version.ps1) :
+         - publish.cmd : +0.0.1 à chaque exe de test publié (corrections, mises au point) ;
+         - release.cmd : +0.0.1 pour une release de correctifs, +0.1.0 pour une release
+           avec des nouveautés, +1.0.0 pour un gros changement (dont l'UI principale).
+         Pas de modification à la main, sauf cas particulier. -->
     <Version>1.2.0-beta</Version>
   </PropertyGroup>
 

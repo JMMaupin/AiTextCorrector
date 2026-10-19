@@ -9,6 +9,7 @@ using AiTextCorrector.Controls;
 using AiTextCorrector.Interop;
 using AiTextCorrector.Models;
 using AiTextCorrector.Services;
+using AiTextCorrector.Settings;
 using Forms = System.Windows.Forms;
 
 namespace AiTextCorrector;
@@ -75,14 +76,19 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     // Tous les providers gérés par l'application, dans l'ordre d'affichage.
     private static readonly string[] AllProviders = { "OpenAI", "Anthropic", "GLM", "Groq" };
 
-    private void ApiButton_Click(object sender, RoutedEventArgs e)
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new ApiKeysWindow(_keyStore) { Owner = this };
-        if (dialog.ShowDialog() == true)
+        var dialog = new SettingsWindow(_config, _configService, _keyStore, TryApplyHotkey) { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+
+        // Les clés ont pu changer : on rafraîchit la liste des providers. Sans aucune
+        // clé, cette méthode affiche sa propre invite, qu'on ne remplace pas.
+        InitializeProviderSelection();
+        if (ProviderComboBox.IsEnabled)
         {
-            StatusTextBlock.Text = "Clés API enregistrées dans le registre utilisateur.";
-            // Les clés ont pu changer : on rafraîchit la liste des providers.
-            InitializeProviderSelection();
+            StatusTextBlock.Text = dialog.ConfigSaved
+                ? "Settings saved."
+                : "Settings applied, but they could not be written to disk.";
         }
     }
 
@@ -238,21 +244,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         // Échec : on restaure l'ancien raccourci.
         RegisterHotkey(handle, _config.Hotkey);
         return false;
-    }
-
-    private void HotkeyButton_Click(object sender, RoutedEventArgs e)
-    {
-        var current = new HotkeyConfig
-        {
-            Ctrl = _config.Hotkey.Ctrl,
-            Shift = _config.Hotkey.Shift,
-            Alt = _config.Hotkey.Alt,
-            Win = _config.Hotkey.Win,
-            Key = _config.Hotkey.Key
-        };
-
-        var dialog = new HotkeyWindow(current, TryApplyHotkey) { Owner = this };
-        dialog.ShowDialog();
     }
 
     private void MainWindow_StateChanged(object? sender, EventArgs e)
@@ -489,7 +480,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        var instruction = _config.Prompts.Translation.Replace("{language}", language, StringComparison.Ordinal);
+        // Prompt modifié sans le marqueur {language} : la langue cible est ajoutée à
+        // la fin, sinon le modèle ne saurait pas vers quelle langue traduire.
+        var template = _config.Prompts.Translation;
+        var instruction = template.Contains("{language}", StringComparison.Ordinal)
+            ? template.Replace("{language}", language, StringComparison.Ordinal)
+            : $"{template}\nTarget language: {language}.";
         await RunAiAsync(() => _aiService.TranslateAsync(source.Trim(), instruction),
             $"Translating into {language} via {_config.Provider}…",
             $"Translated into {language} via {_config.Provider}.");
@@ -619,7 +615,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         AsciiOnlyCheckBox.IsEnabled = !busy;
         AutoPasteBackCheckBox.IsEnabled = !busy;
         ProviderComboBox.IsEnabled = !busy;
-        HotkeyButton.IsEnabled = !busy;
+        SettingsButton.IsEnabled = !busy;
         StatusTextBlock.Text = status;
     }
 

@@ -28,11 +28,11 @@ public class MultiProviderCorrectionService
     private const string GroqEndpoint = "https://api.groq.com/openai/v1";
 
     public Task<string> CorrectAsync(string inputText, string prompt) =>
-        CompleteAsync($"Instruction: {prompt}\n\nTexte à corriger:\n{inputText}");
+        CompleteAsync($"Instruction: {prompt}\n\nText to correct:\n{inputText}");
 
     /// <summary><paramref name="instruction"/> : prompt de traduction, langue cible déjà substituée.</summary>
     public Task<string> TranslateAsync(string text, string instruction) =>
-        CompleteAsync($"Instruction: {instruction}\n\nTexte à traduire:\n{text}");
+        CompleteAsync($"Instruction: {instruction}\n\nText to translate:\n{text}");
 
     private async Task<string> CompleteAsync(string userMessage)
     {

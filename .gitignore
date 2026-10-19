@@ -11,3 +11,6 @@ appsettings.json
 .vs/
 *.user
 *.suo
+
+# Réglages locaux de Claude Code (propres au poste)
+.claude/settings.local.json

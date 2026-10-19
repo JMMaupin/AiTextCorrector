@@ -64,12 +64,50 @@ public class ConfigService
             config.GroqModel = replacement;
         }
 
+        UpgradeLegacyDefaultPrompts(config.Prompts ??= new PromptSet());
+
         // Matérialise la configuration (et la migration depuis l'ancien emplacement)
         // dans le dossier utilisateur. Un échec n'est pas bloquant : on continue en
         // mémoire plutôt que d'empêcher le démarrage.
         Save(config);
         return config;
     }
+
+    /// <summary>
+    /// Anciens prompts par défaut, en français (avec ou sans la mention « Aucun '—' »
+    /// du appsettings.json du projet). Un prompt resté identique à l'un d'eux n'a
+    /// jamais été personnalisé : il reçoit le nouveau prompt par défaut, en anglais.
+    /// Un prompt modifié par l'utilisateur est conservé tel quel.
+    /// </summary>
+    private static void UpgradeLegacyDefaultPrompts(PromptSet prompts)
+    {
+        var defaults = new PromptSet();
+
+        prompts.StrictCorrection = Upgrade(prompts.StrictCorrection, defaults.StrictCorrection,
+            "Corrige uniquement l'orthographe, la grammaire, la ponctuation et les accords. Ne reformule pas. Conserve strictement le sens, le ton, les listes, les retours ligne et les noms propres. Retourne uniquement le texte corrigé, sans commentaire ni guillemets.",
+            "Corrige uniquement l'orthographe, la grammaire, la ponctuation et les accords. Ne reformule pas. Conserve strictement le sens, le ton, les listes, les retours ligne et les noms propres. Retourne uniquement le texte corrigé, sans commentaire ni guillemets, Aucun '—'.");
+
+        prompts.CorrectionAndRewrite = Upgrade(prompts.CorrectionAndRewrite, defaults.CorrectionAndRewrite,
+            "Corrige l'orthographe, la grammaire et la ponctuation puis reformule légèrement pour rendre le texte plus fluide et naturel. Conserve le sens d'origine. Retourne uniquement le texte final, sans commentaire ni guillemets.",
+            "Corrige l'orthographe, la grammaire et la ponctuation puis reformule légèrement pour rendre le texte plus fluide et naturel. Conserve le sens d'origine. Retourne uniquement le texte final, sans commentaire ni guillemets, Aucun '—'.");
+
+        prompts.ProfessionalStyle = Upgrade(prompts.ProfessionalStyle, defaults.ProfessionalStyle,
+            "Corrige puis reformule dans un style professionnel, clair, direct et concis. Conserve les informations importantes et la langue d'origine. Retourne uniquement le texte final, sans commentaire ni guillemets.",
+            "Corrige puis reformule dans un style professionnel, clair, direct et concis. Conserve les informations importantes et la langue d'origine. Retourne uniquement le texte final, sans commentaire ni guillemets, Aucun '—'.");
+
+        prompts.CustomPrompt = Upgrade(prompts.CustomPrompt, defaults.CustomPrompt,
+            "Corrige ce texte en conservant sa langue d'origine. Retourne uniquement le texte final.",
+            "Corrige ce texte en conservant sa langue d'origine. Retourne uniquement le texte final, Aucun '—'.");
+
+        prompts.Translation = Upgrade(prompts.Translation, defaults.Translation,
+            "Traduis ce texte vers la langue suivante : {language}. Conserve le sens, le ton, la mise en forme (listes, retours ligne) et les noms propres. Retourne uniquement la traduction, sans commentaire ni guillemets, Aucun '—'.");
+    }
+
+    // Prompt absent ou égal à un ancien défaut (espaces de bord ignorés) : nouveau défaut.
+    private static string Upgrade(string? current, string newDefault, params string[] legacyDefaults) =>
+        string.IsNullOrWhiteSpace(current) || legacyDefaults.Contains(current.Trim(), StringComparer.Ordinal)
+            ? newDefault
+            : current;
 
     private static AppConfig? ReadFrom(string? path)
     {

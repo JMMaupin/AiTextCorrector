@@ -43,11 +43,13 @@ public class HotkeyConfig
 
 public class PromptSet
 {
-    public string StrictCorrection { get; set; } = "Corrige uniquement l'orthographe, la grammaire, la ponctuation et les accords. Ne reformule pas. Conserve strictement le sens, le ton, les listes, les retours ligne et les noms propres. Retourne uniquement le texte corrigé, sans commentaire ni guillemets.";
-    public string CorrectionAndRewrite { get; set; } = "Corrige l'orthographe, la grammaire et la ponctuation puis reformule légèrement pour rendre le texte plus fluide et naturel. Conserve le sens d'origine. Retourne uniquement le texte final, sans commentaire ni guillemets.";
-    public string ProfessionalStyle { get; set; } = "Corrige puis reformule dans un style professionnel, clair, direct et concis. Conserve les informations importantes et la langue d'origine. Retourne uniquement le texte final, sans commentaire ni guillemets.";
-    public string CustomPrompt { get; set; } = "Corrige ce texte en conservant sa langue d'origine. Retourne uniquement le texte final.";
+    // Consignes en anglais, mais la langue du texte est explicitement préservée :
+    // sans cette mention, une consigne anglaise pousse le modèle à répondre en anglais.
+    public string StrictCorrection { get; set; } = "Fix only spelling, grammar, punctuation and agreement errors. Do not rephrase. Strictly keep the meaning, tone, lists, line breaks and proper nouns. Keep the text in its original language. Return only the corrected text, with no comments or quotation marks. Do not use em dashes (—).";
+    public string CorrectionAndRewrite { get; set; } = "Fix spelling, grammar and punctuation, then lightly rephrase the text to make it smoother and more natural. Keep the original meaning and the original language. Return only the final text, with no comments or quotation marks. Do not use em dashes (—).";
+    public string ProfessionalStyle { get; set; } = "Correct the text, then rewrite it in a professional, clear, direct and concise style. Keep the important information and the original language. Return only the final text, with no comments or quotation marks. Do not use em dashes (—).";
+    public string CustomPrompt { get; set; } = "Correct this text and keep it in its original language. Return only the final text. Do not use em dashes (—).";
 
     // {language} est remplacé par la langue cible choisie dans l'interface.
-    public string Translation { get; set; } = "Traduis ce texte vers la langue suivante : {language}. Conserve le sens, le ton, la mise en forme (listes, retours ligne) et les noms propres. Retourne uniquement la traduction, sans commentaire ni guillemets, Aucun '—'.";
+    public string Translation { get; set; } = "Translate this text into {language}. Keep the meaning, tone, formatting (lists, line breaks) and proper nouns. Return only the translation, with no comments or quotation marks. Do not use em dashes (—).";
 }

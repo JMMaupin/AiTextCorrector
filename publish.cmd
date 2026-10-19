@@ -6,6 +6,10 @@ rem  Produit un fichier .exe unique, framework-dependent : le .NET 8 Desktop
 rem  Runtime doit etre present sur le PC cible (sinon Windows propose de
 rem  l'installer au premier lancement).
 rem
+rem  Chaque publication monte la version de 0.0.1 (exe de test, corrections et
+rem  mises au point en cours de debug). Option /nobump : publier sans toucher a
+rem  la version, utilisee par release.cmd qui fixe lui-meme le numero.
+rem
 rem  Ce script n'utilise volontairement aucun caractere accentue : les fichiers
 rem  .bat s'affichent dans la page de codes OEM de la console, qui deformerait
 rem  les accents d'un fichier enregistre en UTF-8.
@@ -37,6 +41,18 @@ if not exist "%PROJECT%" (
     goto :fail
 )
 
+if /i "%~1"=="/nobump" goto :build
+
+set "NEWVER="
+for /f "usebackq delims=" %%v in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\bump-version.ps1" -Part patch`) do set "NEWVER=%%v"
+if not defined NEWVER (
+    echo ERREUR : impossible d'incrementer la version dans le csproj.
+    goto :fail
+)
+echo Version portee a %NEWVER% ^(+0.0.1^). Pense a la commiter avec tes changements.
+echo.
+
+:build
 rem Repart d'un dossier vide : sans cela, les fichiers d'une publication
 rem precedente (autre version, autre profil) subsistent et on ne sait plus ce
 rem qui vient d'etre produit.

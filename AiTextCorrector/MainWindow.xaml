@@ -35,16 +35,24 @@
             </Grid.RowDefinitions>
 
             <ui:Card Grid.Row="0" Padding="12" Margin="0,0,0,12">
-                <WrapPanel>
-                    <ui:TextBlock Text="Provider:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox Name="ProviderComboBox" Width="160" Margin="0,0,18,0" VerticalAlignment="Center" SelectionChanged="ProviderComboBox_SelectionChanged"/>
-                    <CheckBox Name="AutoCopyCheckBox" Content="Copie auto après correction" IsChecked="True" Margin="0,0,20,0" VerticalAlignment="Center"/>
-                    <CheckBox Name="AsciiOnlyCheckBox" Content="Mode ASCII simple" Margin="0,0,20,0" VerticalAlignment="Center"/>
-                    <CheckBox Name="AutoPasteBackCheckBox" Content="Recoller automatiquement" Margin="0,0,20,0" VerticalAlignment="Center"/>
-                    <ui:Button Name="HotkeyButton" Content="Raccourci…" Icon="{ui:SymbolIcon Keyboard24}" Margin="0,0,8,0" VerticalAlignment="Center" Click="HotkeyButton_Click"/>
-                    <ui:Button Name="ApiButton" Content="API" Icon="{ui:SymbolIcon Key24}" Appearance="Secondary" VerticalAlignment="Center" Click="ApiButton_Click"
-                               ToolTip="Configurer les clés API"/>
-                </WrapPanel>
+                <!-- L'engrenage est ancré à droite ; les options occupent le reste et
+                     passent à la ligne si la fenêtre se rétrécit. -->
+                <DockPanel>
+                    <ui:Button Name="SettingsButton" DockPanel.Dock="Right" Appearance="Secondary"
+                               Width="44" Height="44" Padding="0" Margin="12,0,0,0" VerticalAlignment="Center"
+                               ToolTip="Settings: shortcut, API keys, prompts" Click="SettingsButton_Click">
+                        <!-- En contenu et non en Icon : le modèle de bouton WPF-UI
+                             impose sa propre taille à l'icône. -->
+                        <ui:SymbolIcon Symbol="Settings24" FontSize="26"/>
+                    </ui:Button>
+                    <WrapPanel VerticalAlignment="Center">
+                        <ui:TextBlock Text="Provider:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox Name="ProviderComboBox" Width="160" Margin="0,0,18,0" VerticalAlignment="Center" SelectionChanged="ProviderComboBox_SelectionChanged"/>
+                        <CheckBox Name="AutoCopyCheckBox" Content="Copie auto après correction" IsChecked="True" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                        <CheckBox Name="AsciiOnlyCheckBox" Content="Mode ASCII simple" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                        <CheckBox Name="AutoPasteBackCheckBox" Content="Recoller automatiquement" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                    </WrapPanel>
+                </DockPanel>
             </ui:Card>
 
             <Grid Grid.Row="1">

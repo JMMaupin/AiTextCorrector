@@ -6,42 +6,53 @@ using System.Windows.Media;
 using AiTextCorrector.Interop;
 using AiTextCorrector.Models;
 
-namespace AiTextCorrector;
+namespace AiTextCorrector.Settings;
 
-public partial class HotkeyWindow : Wpf.Ui.Controls.FluentWindow
+/// <summary>Onglet « Shortcut » : capture et vérification du raccourci global.</summary>
+public partial class HotkeySettingsPanel : UserControl
 {
     private const int ProbeHotkeyId = 9100;
 
-    private readonly Func<HotkeyConfig, bool> _tryApply;
-    private readonly HotkeyConfig _current;
+    private static readonly Color GreenColor = Color.FromRgb(0x22, 0xC5, 0x5E);
+    private static readonly Color RedColor = Color.FromRgb(0xEF, 0x44, 0x44);
+
+    private HotkeyConfig _current = new();
     private bool _ctrl;
     private bool _shift;
     private bool _alt;
     private bool _win;
     private Key _key = Key.None;
-    private bool _isAvailable;
+    private bool _isValid = true;
 
-    public HotkeyWindow(HotkeyConfig current, Func<HotkeyConfig, bool> tryApply)
+    public HotkeySettingsPanel()
     {
         InitializeComponent();
-        _tryApply = tryApply;
-        _current = current;
+    }
 
+    /// <summary>Vrai si la saisie peut être enregistrée : inchangée, ou complète et libre.</summary>
+    public bool IsValid => _isValid;
+
+    public bool IsChanged => !IsSameAsCurrent();
+
+    public HotkeyConfig Selected => BuildConfig();
+
+    public void Load(HotkeyConfig current)
+    {
+        _current = current;
         _ctrl = current.Ctrl;
         _shift = current.Shift;
         _alt = current.Alt;
         _win = current.Win;
-        try
-        {
-            _key = (Key)Enum.Parse(typeof(Key), current.Key, ignoreCase: true);
-        }
-        catch
-        {
-            _key = Key.Space;
-        }
+        _key = Enum.TryParse<Key>(current.Key, ignoreCase: true, out var key) ? key : Key.Space;
 
         UpdateDisplay();
-        Loaded += (_, _) => CaptureBox.Focus();
+    }
+
+    /// <summary>Course rare : la combinaison a été prise entre la sonde et l'enregistrement.</summary>
+    public void MarkUnavailable()
+    {
+        _isValid = false;
+        ShowStatus(false, "✗ Already used by another application or reserved by Windows. Choose another combination.");
     }
 
     private void CaptureBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -91,18 +102,26 @@ public partial class HotkeyWindow : Wpf.Ui.Controls.FluentWindow
     {
         CaptureBox.Text = BuildConfig().Describe();
 
-        // Pas encore de combinaison complète : état neutre.
-        if (_key == Key.None || (!_ctrl && !_shift && !_alt && !_win))
+        // Raccourci actuel : forcément valide, l'application elle-même le détient.
+        if (IsSameAsCurrent())
         {
-            _isAvailable = false;
-            SetNeutral();
+            _isValid = true;
+            CaptureBorder.BorderBrush = Brushes.Transparent;
+            StatusBorder.Visibility = Visibility.Collapsed;
             return;
         }
 
-        // Si l'utilisateur re-choisit le raccourci déjà actif de l'app, il est
-        // forcément disponible (c'est l'app elle-même qui le détient).
-        _isAvailable = IsSameAsCurrent() || ProbeAvailable();
-        SetAvailability(_isAvailable);
+        if (!_ctrl && !_shift && !_alt && !_win)
+        {
+            _isValid = false;
+            ShowStatus(false, "✗ Add at least one modifier: Ctrl, Shift, Alt or Win.");
+            return;
+        }
+
+        _isValid = ProbeAvailable();
+        ShowStatus(_isValid, _isValid
+            ? "✓ Available"
+            : "✗ Already used by another application or reserved by Windows. Choose another combination.");
     }
 
     private bool IsSameAsCurrent() =>
@@ -131,51 +150,15 @@ public partial class HotkeyWindow : Wpf.Ui.Controls.FluentWindow
         return false;
     }
 
-    private static readonly Color GreenColor = Color.FromRgb(0x22, 0xC5, 0x5E);
-    private static readonly Color RedColor = Color.FromRgb(0xEF, 0x44, 0x44);
-
-    private void SetNeutral()
+    private void ShowStatus(bool ok, string message)
     {
-        CaptureBorder.BorderBrush = Brushes.Transparent;
-        StatusBorder.Visibility = Visibility.Collapsed;
-        SaveButton.IsEnabled = false;
-    }
-
-    private void SetAvailability(bool available)
-    {
-        var color = available ? GreenColor : RedColor;
+        var color = ok ? GreenColor : RedColor;
 
         // Bordure colorée autour du champ + bandeau de statut au fond teinté.
         CaptureBorder.BorderBrush = new SolidColorBrush(color);
-
         StatusBorder.Background = new SolidColorBrush(Color.FromArgb(0x33, color.R, color.G, color.B));
         StatusTextBlock.Foreground = new SolidColorBrush(color);
-        StatusTextBlock.Text = available
-            ? "✓ Disponible"
-            : "✗ Déjà utilisé par une autre application ou réservé par Windows. Choisis une autre combinaison.";
-
+        StatusTextBlock.Text = message;
         StatusBorder.Visibility = Visibility.Visible;
-        SaveButton.IsEnabled = available;
     }
-
-    private void Save_Click(object sender, RoutedEventArgs e)
-    {
-        if (!_isAvailable)
-        {
-            return;
-        }
-
-        if (_tryApply(BuildConfig()))
-        {
-            DialogResult = true;
-            Close();
-        }
-        else
-        {
-            // Course rare : la combinaison a été prise entre la sonde et l'application.
-            SetAvailability(false);
-        }
-    }
-
-    private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
 }
