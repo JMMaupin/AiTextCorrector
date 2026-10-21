@@ -15,8 +15,9 @@ public class AppConfig
     // Dernière langue choisie, resélectionnée au démarrage.
     public string TranslationLanguage { get; set; } = "English";
 
-    // Option « Explain » : la correction stricte annote chaque faute dans la zone source.
-    public bool ExplainErrors { get; set; }
+    // Langue de l'interface (nom anglais). Vide au premier lancement : celle de
+    // Windows si elle est intégrée, fixée au chargement de la configuration.
+    public string? UiLanguage { get; set; }
 
     public HotkeyConfig Hotkey { get; set; } = new();
     public PromptSet Prompts { get; set; } = new();

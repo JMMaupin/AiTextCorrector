@@ -6,6 +6,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using AiTextCorrector.Localization;
 using AiTextCorrector.Models;
 using Anthropic;
 using Anthropic.Models.Messages;
@@ -53,6 +54,28 @@ public class MultiProviderCorrectionService
         "Write \"category\", \"rule\" and \"explanation\" entirely in the same language as the text, including the category. " +
         "If there is no error, return the text unchanged with an empty \"errors\" list. " +
         "This JSON format replaces any instruction above about returning only the corrected text.";
+
+    // Phrases de l'interface par requête : une réponse courte est plus fiable, et
+    // reste sous le plafond de longueur d'Anthropic.
+    private const int InterfaceBatchSize = 40;
+
+    // Phrases envoyées en JSON lisible : « é » plutôt que « é ».
+    private static readonly JsonSerializerOptions RelaxedJson = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
+    // Consigne de traduction de l'interface. Les trous ({0}, {language}) sont
+    // vérifiés au retour : une phrase qui en perd un est écartée.
+    private static string InterfaceTranslationInstruction(string language) =>
+        $"Translate the values of the JSON object below into {language}. They are the user interface texts of a Windows application that corrects and translates text with AI. " +
+        "Each key tells where its text appears: Main is the main window, Status its status bar, Tray the notification area menu, " +
+        "Settings, Hotkey, ApiKeys, Prompts and Language the settings window and its tabs, Setup the installer. " +
+        "Keep every key unchanged. Keep every placeholder in braces, such as {0}, {1} or {language}, exactly as it is. " +
+        "Keep line breaks, symbols such as ✓, ✗, → and …, and these names unchanged: AI Text Corrector, OpenAI, Anthropic, Claude, GLM, Z.ai, Groq, " +
+        "HKCU, ASCII, Ctrl, Shift, Alt, Win and environment variable names. " +
+        "Write short, natural texts, as in a well translated application: button labels must stay short. Address the user consistently. " +
+        "Answer with one JSON object only, with the same keys and the translated texts as values, and no other text.";
 
     public Task<string> CorrectAsync(string inputText, string prompt) =>
         CompleteAsync($"Instruction: {prompt}\n\nText to correct:\n{inputText}");
@@ -123,6 +146,64 @@ public class MultiProviderCorrectionService
         }
     }
 
+    /// <summary>
+    /// Traduit des phrases de l'interface (clé → texte anglais) vers
+    /// <paramref name="language"/>, par lots. <paramref name="batchTranslated"/> reçoit
+    /// chaque lot dès sa réponse, avec le nombre de phrases traitées jusque-là : une
+    /// erreur en cours de route ne fait pas perdre les lots déjà traduits.
+    /// </summary>
+    public async Task TranslateInterfaceAsync(IReadOnlyDictionary<string, string> phrases, string language,
+                                              Action<int, IReadOnlyDictionary<string, string>> batchTranslated)
+    {
+        var processed = 0;
+        foreach (var batch in phrases.Chunk(InterfaceBatchSize))
+        {
+            var source = batch.ToDictionary(p => p.Key, p => p.Value);
+            var raw = await CompleteAsync(
+                $"Instruction: {InterfaceTranslationInstruction(language)}\n\n{JsonSerializer.Serialize(source, RelaxedJson)}",
+                jsonMode: true, maxTokens: 4096);
+
+            processed += source.Count;
+            batchTranslated(processed, ParseTranslatedPhrases(raw, source));
+        }
+    }
+
+    /// <summary>
+    /// Analyse tolérante, comme pour la correction expliquée. Ne garde que les clés
+    /// demandées dont la traduction conserve les trous du texte anglais ; une réponse
+    /// illisible donne un lot vide, et ses phrases restent en anglais.
+    /// </summary>
+    internal static Dictionary<string, string> ParseTranslatedPhrases(string raw, IReadOnlyDictionary<string, string> source)
+    {
+        var result = new Dictionary<string, string>();
+        var start = raw.IndexOf('{');
+        var end = raw.LastIndexOf('}');
+        if (start < 0 || end <= start) return result;
+
+        try
+        {
+            using var document = JsonDocument.Parse(raw.AsMemory(start, end - start + 1));
+            if (document.RootElement.ValueKind != JsonValueKind.Object) return result;
+
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind == JsonValueKind.String &&
+                    source.TryGetValue(property.Name, out var english) &&
+                    property.Value.GetString() is { } text &&
+                    InterfaceTranslation.IsValidTranslation(english, text))
+                {
+                    result[property.Name] = text.Trim();
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Lot inexploitable : ses phrases seront proposées à la retraduction.
+        }
+
+        return result;
+    }
+
     // Nom de propriété sans tenir compte de la casse : « Corrected » ou « corrected ».
     private static JsonElement? Property(JsonElement element, string name)
     {
@@ -156,7 +237,7 @@ public class MultiProviderCorrectionService
             var glmKey = _keyStore.GetGlmKey();
             if (string.IsNullOrWhiteSpace(glmKey))
             {
-                throw new InvalidOperationException("Clé GLM absente. Renseigne-la dans la fenêtre ou via AITEXTCORRECTOR_GLM_API_KEY.");
+                throw new InvalidOperationException(Loc.Format("Errors.MissingKey", "GLM", "AITEXTCORRECTOR_GLM_API_KEY"));
             }
 
             return await CompleteWithOpenAiCompatibleAsync(_config.GlmModel, glmKey, GlmEndpoint, userMessage, "GLM", jsonMode);
@@ -168,7 +249,7 @@ public class MultiProviderCorrectionService
             var groqKey = _keyStore.GetGroqKey();
             if (string.IsNullOrWhiteSpace(groqKey))
             {
-                throw new InvalidOperationException("Clé Groq absente. Renseigne-la dans la fenêtre ou via AITEXTCORRECTOR_GROQ_API_KEY.");
+                throw new InvalidOperationException(Loc.Format("Errors.MissingKey", "Groq", "AITEXTCORRECTOR_GROQ_API_KEY"));
             }
 
             return await CompleteWithOpenAiCompatibleAsync(_config.GroqModel, groqKey, GroqEndpoint, userMessage, "Groq", jsonMode);
@@ -177,7 +258,7 @@ public class MultiProviderCorrectionService
         var openAiKey = _keyStore.GetOpenAiKey();
         if (string.IsNullOrWhiteSpace(openAiKey))
         {
-            throw new InvalidOperationException("Clé OpenAI absente. Renseigne-la dans la fenêtre ou via OPENAI_API_KEY.");
+            throw new InvalidOperationException(Loc.Format("Errors.MissingKey", "OpenAI", "OPENAI_API_KEY"));
         }
 
         return await CompleteWithOpenAiCompatibleAsync(_config.Model, openAiKey, endpoint: null, userMessage, "OpenAI", jsonMode);
@@ -227,7 +308,7 @@ public class MultiProviderCorrectionService
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            throw new InvalidOperationException($"La réponse {providerLabel} est vide.");
+            throw new InvalidOperationException(Loc.Format("Errors.EmptyAnswer", providerLabel));
         }
 
         return text.Trim();
@@ -244,18 +325,17 @@ public class MultiProviderCorrectionService
         var detail = ExtractErrorDetail(ReadBody(ex));
         var hint = ex.Status switch
         {
-            401 => "The API key is invalid or revoked: check it in Settings > API keys.",
-            403 => "Access refused from this computer: check for a VPN, a company proxy or firewall, " +
-                   "a country the provider does not serve, or another key set in an environment variable.",
-            404 => "Unknown model or address: check the model name in the configuration file.",
-            429 => "Rate limit or quota reached: wait a moment, or check your plan and credit.",
-            >= 500 => "Temporary problem at the provider: try again in a moment.",
+            401 => Loc.Text("Errors.Http401"),
+            403 => Loc.Text("Errors.Http403"),
+            404 => Loc.Text("Errors.Http404"),
+            429 => Loc.Text("Errors.Http429"),
+            >= 500 => Loc.Text("Errors.Http5xx"),
             _ => string.Empty
         };
 
         var text = detail.Length > 0
-            ? $"{provider} returned HTTP {ex.Status}: {detail}"
-            : $"{provider} returned HTTP {ex.Status}";
+            ? Loc.Format("Errors.HttpStatusDetail", provider, ex.Status, detail)
+            : Loc.Format("Errors.HttpStatus", provider, ex.Status);
         return hint.Length > 0 ? $"{text}. {hint}" : $"{text}.";
     }
 
@@ -311,7 +391,7 @@ public class MultiProviderCorrectionService
         var apiKey = _keyStore.GetAnthropicKey();
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            throw new InvalidOperationException("Clé Anthropic absente. Renseigne-la dans la fenêtre ou via AITEXTCORRECTOR_ANTHROPIC_API_KEY.");
+            throw new InvalidOperationException(Loc.Format("Errors.MissingKey", "Anthropic", "AITEXTCORRECTOR_ANTHROPIC_API_KEY"));
         }
 
         var client = new AnthropicClient { ApiKey = apiKey };
@@ -334,7 +414,7 @@ public class MultiProviderCorrectionService
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            throw new InvalidOperationException("La réponse Anthropic est vide.");
+            throw new InvalidOperationException(Loc.Format("Errors.EmptyAnswer", "Anthropic"));
         }
 
         return text.Trim();

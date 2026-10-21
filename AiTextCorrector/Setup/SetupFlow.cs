@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Windows;
+using AiTextCorrector.Localization;
 
 namespace AiTextCorrector.Setup;
 
@@ -42,7 +43,7 @@ internal static class SetupFlow
         var comparison = CompareVersions(AppInfo.Version, installedVersion);
         if (comparison > 0 || (comparison == 0 && !Installer.InstalledCopyIsIdentical()))
         {
-            return Apply(() => Installer.Install(startWithWindows: null), UpdatedArgument, "update");
+            return Apply(() => Installer.Install(startWithWindows: null), UpdatedArgument, Loc.Text("Setup.UpdateFailed"));
         }
 
         // Déjà installé à l'identique (ou plus récent) : on passe la main à la version
@@ -58,7 +59,7 @@ internal static class SetupFlow
 
         return window.Choice switch
         {
-            SetupChoice.Install => Apply(() => Installer.Install(window.StartWithWindows), InstalledArgument, "installation"),
+            SetupChoice.Install => Apply(() => Installer.Install(window.StartWithWindows), InstalledArgument, Loc.Text("Setup.InstallFailed")),
             SetupChoice.RunWithoutInstalling => false,
             _ => true
         };
@@ -66,7 +67,7 @@ internal static class SetupFlow
 
     // Exécute l'opération puis lance la version installée. En cas d'échec, l'erreur
     // est montrée et l'on s'arrête : rien ne démarre dans un état incertain.
-    private static bool Apply(Action operation, string launchArgument, string operationName)
+    private static bool Apply(Action operation, string launchArgument, string failureMessage)
     {
         try
         {
@@ -75,7 +76,7 @@ internal static class SetupFlow
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"The {operationName} failed.\n\n{ex.Message}", AppInfo.Product,
+            MessageBox.Show($"{failureMessage}\n\n{ex.Message}", AppInfo.Product,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
@@ -84,7 +85,7 @@ internal static class SetupFlow
 
     private static void RunUninstall()
     {
-        if (MessageBox.Show($"Uninstall {AppInfo.Product}?", AppInfo.Product,
+        if (MessageBox.Show(Loc.Format("Setup.ConfirmUninstall", AppInfo.Product), AppInfo.Product,
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
         {
             return;
@@ -93,20 +94,18 @@ internal static class SetupFlow
         // Défaut sur « No » et conséquence explicite : la suppression est définitive,
         // les clés API devront être ressaisies (voire régénérées chez le fournisseur).
         var removeUserData = MessageBox.Show(
-            "Also delete your settings and API keys?\n\n" +
-            "This cannot be undone: the API keys would have to be entered again. " +
-            "Choose No if you plan to reinstall later.",
+            Loc.Text("Setup.DeleteUserData"),
             AppInfo.Product, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
 
         try
         {
             Installer.Uninstall(removeUserData);
-            MessageBox.Show($"{AppInfo.Product} has been uninstalled.", AppInfo.Product,
+            MessageBox.Show(Loc.Format("Setup.Uninstalled", AppInfo.Product), AppInfo.Product,
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"The uninstallation failed.\n\n{ex.Message}", AppInfo.Product,
+            MessageBox.Show($"{Loc.Text("Setup.UninstallFailed")}\n\n{ex.Message}", AppInfo.Product,
                 MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }

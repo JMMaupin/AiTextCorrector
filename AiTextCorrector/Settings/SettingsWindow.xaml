@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:settings="clr-namespace:AiTextCorrector.Settings"
-        Title="Settings"
+        xmlns:loc="clr-namespace:AiTextCorrector.Localization"
+        Title="{loc:Text Settings.Title}"
         Icon="pack://application:,,,/Resources/AICorrector.ico"
         Width="640"
         Height="680"
@@ -23,23 +24,27 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="Settings" ShowMaximize="False" ShowMinimize="False"/>
+        <ui:TitleBar Grid.Row="0" Title="{loc:Text Settings.Title}" ShowMaximize="False" ShowMinimize="False"/>
 
         <TabControl x:Name="Tabs" Grid.Row="1" Margin="16,4,16,0">
-            <TabItem x:Name="HotkeyTab" Header="Shortcut">
+            <TabItem x:Name="HotkeyTab" Header="{loc:Text Settings.ShortcutTab}">
                 <settings:HotkeySettingsPanel x:Name="HotkeyPanel" Margin="8,16,8,8"/>
             </TabItem>
-            <TabItem x:Name="ApiKeysTab" Header="API keys">
+            <TabItem x:Name="ApiKeysTab" Header="{loc:Text Settings.ApiKeysTab}">
                 <settings:ApiKeysPanel x:Name="KeysPanel" Margin="8,16,8,8"/>
             </TabItem>
-            <TabItem x:Name="PromptsTab" Header="Prompts">
+            <TabItem x:Name="PromptsTab" Header="{loc:Text Settings.PromptsTab}">
                 <settings:PromptsPanel x:Name="PromptPanel" Margin="8,16,8,8"/>
+            </TabItem>
+            <TabItem x:Name="LanguageTab" Header="{loc:Text Settings.LanguageTab}">
+                <settings:LanguageSettingsPanel x:Name="LanguagePanel" Margin="8,16,8,8"
+                                                BusyChanged="LanguagePanel_BusyChanged"/>
             </TabItem>
         </TabControl>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,12,16,16">
-            <ui:Button Content="Cancel" MinWidth="100" Margin="0,0,8,0" IsCancel="True"/>
-            <ui:Button Content="Save" Appearance="Primary" MinWidth="120" Click="Save_Click"/>
+            <ui:Button Content="{loc:Text Settings.Cancel}" MinWidth="100" Margin="0,0,8,0" IsCancel="True"/>
+            <ui:Button Name="SaveButton" Content="{loc:Text Settings.Save}" Appearance="Primary" MinWidth="120" Click="Save_Click"/>
         </StackPanel>
     </Grid>
 </ui:FluentWindow>

@@ -7,6 +7,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using AiTextCorrector.Localization;
 using AiTextCorrector.Models;
 using AiTextCorrector.Services;
 
@@ -102,7 +103,7 @@ public partial class AnnotatedTextView : UserControl
         {
             panel.Children.Add(new TextBlock
             {
-                Text = "No explanation was provided for this change.",
+                Text = Loc.Text("Annotated.NoExplanation"),
                 Opacity = 0.75,
                 Margin = new Thickness(0, 4, 0, 0),
                 TextWrapping = TextWrapping.Wrap
@@ -142,7 +143,7 @@ public partial class AnnotatedTextView : UserControl
         var before = change.Original.Trim();
         var after = change.Corrected.Trim();
         if (before.Length == 0) return $"+ {after}";
-        if (after.Length == 0) return $"{before} → (deleted)";
+        if (after.Length == 0) return $"{before} → {Loc.Text("Annotated.Deleted")}";
         return $"{before} → {after}";
     }
 

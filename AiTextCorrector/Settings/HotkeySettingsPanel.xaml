@@ -1,16 +1,17 @@
 <UserControl x:Class="AiTextCorrector.Settings.HotkeySettingsPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:loc="clr-namespace:AiTextCorrector.Localization">
     <StackPanel>
-        <ui:TextBlock Text="Shortcut that opens the window from any application and captures the selected text."
+        <ui:TextBlock Text="{loc:Text Hotkey.Intro}"
                       TextWrapping="Wrap" Margin="0,0,0,4"/>
-        <ui:TextBlock Text="Click the field below, then press the combination you want: at least one modifier (Ctrl, Shift, Alt or Win) plus a key."
+        <ui:TextBlock Text="{loc:Text Hotkey.Help}"
                       Appearance="Secondary" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
         <Border Name="CaptureBorder" BorderThickness="2" BorderBrush="Transparent" CornerRadius="6">
             <ui:TextBox Name="CaptureBox" IsReadOnly="True" FontSize="16"
-                        PlaceholderText="Click here, then press the keys…"
+                        PlaceholderText="{loc:Text Hotkey.Placeholder}"
                         PreviewKeyDown="CaptureBox_PreviewKeyDown"/>
         </Border>
 

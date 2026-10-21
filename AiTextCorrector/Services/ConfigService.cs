@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using AiTextCorrector.Localization;
 using AiTextCorrector.Models;
 
 namespace AiTextCorrector.Services;
@@ -66,12 +67,23 @@ public class ConfigService
 
         UpgradeLegacyDefaultPrompts(config.Prompts ??= new PromptSet());
 
+        if (string.IsNullOrWhiteSpace(config.UiLanguage))
+        {
+            config.UiLanguage = Localizer.SystemDefaultLanguage;
+        }
+
         // Matérialise la configuration (et la migration depuis l'ancien emplacement)
         // dans le dossier utilisateur. Un échec n'est pas bloquant : on continue en
         // mémoire plutôt que d'empêcher le démarrage.
         Save(config);
         return config;
     }
+
+    /// <summary>
+    /// Langue de l'interface enregistrée, ou null. Lecture seule, contrairement à
+    /// <see cref="Load"/> : l'installeur s'en sert avant que rien ne soit écrit sur le poste.
+    /// </summary>
+    public static string? PeekUiLanguage() => (ReadFrom(ConfigPath) ?? ReadFrom(LegacyConfigPath))?.UiLanguage;
 
     /// <summary>
     /// Anciens prompts par défaut, en français (avec ou sans la mention « Aucun '—' »

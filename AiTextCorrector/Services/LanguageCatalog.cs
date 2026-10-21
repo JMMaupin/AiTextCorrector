@@ -89,6 +89,16 @@ public static class LanguageCatalog
             ?.EnglishName;
     }
 
+    /// <summary>
+    /// Libellé d'une langue pour une liste (« German — Deutsch ») : le nom natif aide
+    /// à reconnaître la sienne. Le nom tel quel s'il est inconnu du catalogue.
+    /// </summary>
+    public static string Describe(string englishName)
+    {
+        var q = Normalize(englishName);
+        return All.Value.FirstOrDefault(l => l.NormalizedEnglishName == q)?.ToString() ?? englishName;
+    }
+
     // Minuscules sans accents, pour que « espa » trouve « español ».
     internal static string Normalize(string text)
     {

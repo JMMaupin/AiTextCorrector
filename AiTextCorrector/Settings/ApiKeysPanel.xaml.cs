@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using AiTextCorrector.Localization;
 using AiTextCorrector.Services;
 
 namespace AiTextCorrector.Settings;
@@ -38,8 +39,7 @@ public partial class ApiKeysPanel : UserControl
 
         if (overridden.Count > 0)
         {
-            EnvironmentNoteText.Text =
-                $"Note: the environment variable {string.Join(" and ", overridden)} is defined and takes precedence as long as it exists.";
+            EnvironmentNoteText.Text = Loc.Format("ApiKeys.EnvironmentOverride", string.Join(", ", overridden));
             EnvironmentNoteText.Visibility = Visibility.Visible;
         }
     }
@@ -84,15 +84,15 @@ public partial class ApiKeysPanel : UserControl
     {
         if (_markedForRemoval.Contains(provider))
         {
-            status.Text = "— will be deleted on save";
-            clearButton.Content = "Restore";
+            status.Text = Loc.Text("ApiKeys.WillBeDeleted");
+            clearButton.Content = Loc.Text("ApiKeys.Restore");
             clearButton.IsEnabled = true;
             return;
         }
 
         var hasKey = !string.IsNullOrWhiteSpace(storedKey);
-        status.Text = hasKey ? "— key saved" : "— no key saved";
-        clearButton.Content = "Clear";
+        status.Text = Loc.Text(hasKey ? "ApiKeys.KeySaved" : "ApiKeys.NoKeySaved");
+        clearButton.Content = Loc.Text("ApiKeys.Clear");
         clearButton.IsEnabled = hasKey;
     }
 

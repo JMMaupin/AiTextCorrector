@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using AiTextCorrector.Controls;
 using AiTextCorrector.Interop;
+using AiTextCorrector.Localization;
 using AiTextCorrector.Models;
 using AiTextCorrector.Services;
 using AiTextCorrector.Settings;
@@ -25,7 +26,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ApiKeyStore _keyStore = new();
     private readonly MultiProviderCorrectionService _aiService;
     private readonly Forms.NotifyIcon _notifyIcon;
+    private Forms.ToolStripMenuItem? _openItem;
     private Forms.ToolStripMenuItem? _runWithWindowsItem;
+    private Forms.ToolStripMenuItem? _quitItem;
     private readonly AppConfig _config;
     private IntPtr _lastForegroundWindow = IntPtr.Zero;
     // Vrai uniquement quand l'utilisateur choisit « Quitter » dans le menu du systray.
@@ -64,15 +67,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         // Suit en direct les changements de thème clair/sombre de Windows.
         Wpf.Ui.Appearance.SystemThemeWatcher.Watch(this);
         _config = _configService.Load();
+        Localizer.Instance.SetLanguage(_config.UiLanguage);
         _aiService = new MultiProviderCorrectionService(_config, _keyStore);
         _notifyIcon = CreateNotifyIcon();
+
+        // Les textes XAML suivent seuls ; le menu WinForms de la zone de notification non.
+        Localizer.Instance.PropertyChanged += (_, _) => UpdateTrayMenuTexts();
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
         StateChanged += MainWindow_StateChanged;
         InitializeProviderSelection();
         InitializeLanguageSelection();
 
-        ExplainCheckBox.IsChecked = _config.ExplainErrors;
         InputTextBox.TextChanged += InputTextBox_TextChanged;
     }
 
@@ -81,7 +87,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SettingsWindow(_config, _configService, _keyStore, TryApplyHotkey) { Owner = this };
+        var dialog = new SettingsWindow(_config, _configService, _keyStore, _aiService, TryApplyHotkey) { Owner = this };
         if (dialog.ShowDialog() != true) return;
 
         // Les clés ont pu changer : on rafraîchit la liste des providers. Sans aucune
@@ -89,9 +95,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         InitializeProviderSelection();
         if (ProviderComboBox.IsEnabled)
         {
-            StatusTextBlock.Text = dialog.ConfigSaved
-                ? "Settings saved."
-                : "Settings applied, but they could not be written to disk.";
+            StatusTextBlock.Text = Loc.Text(dialog.ConfigSaved ? "Status.SettingsSaved" : "Status.SettingsNotWritten");
         }
     }
 
@@ -110,7 +114,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             // Aucune clé : rien à sélectionner. On invite à en configurer une.
             ProviderComboBox.IsEnabled = false;
-            StatusTextBlock.Text = "Aucune clé API configurée. Clique sur « API » pour en ajouter une.";
+            StatusTextBlock.Text = Loc.Text("Status.NoApiKey");
             return;
         }
 
@@ -139,9 +143,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         };
 
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Ouvrir", null, (_, _) => ShowMainWindow());
+        _openItem = new Forms.ToolStripMenuItem(Loc.Text("Tray.Open"), null, (_, _) => ShowMainWindow());
+        menu.Items.Add(_openItem);
 
-        _runWithWindowsItem = new Forms.ToolStripMenuItem("Run with Windows")
+        _runWithWindowsItem = new Forms.ToolStripMenuItem(Loc.Text("Tray.RunWithWindows"))
         {
             CheckOnClick = true,
             Checked = _startupService.IsEnabled()
@@ -155,10 +160,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         menu.Items.Add(_runWithWindowsItem);
 
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Quitter", null, (_, _) => ExitApplication());
+        _quitItem = new Forms.ToolStripMenuItem(Loc.Text("Tray.Quit"), null, (_, _) => ExitApplication());
+        menu.Items.Add(_quitItem);
         icon.ContextMenuStrip = menu;
         icon.DoubleClick += (_, _) => ShowMainWindow();
         return icon;
+    }
+
+    private void UpdateTrayMenuTexts()
+    {
+        if (_openItem is not null) _openItem.Text = Loc.Text("Tray.Open");
+        if (_runWithWindowsItem is not null) _runWithWindowsItem.Text = Loc.Text("Tray.RunWithWindows");
+        if (_quitItem is not null) _quitItem.Text = Loc.Text("Tray.Quit");
     }
 
     private static System.Drawing.Icon LoadTrayIcon()
@@ -194,7 +207,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         if (!RegisterHotkey(helper.Handle, _config.Hotkey))
         {
-            StatusTextBlock.Text = $"Impossible d'enregistrer le raccourci ({_config.Hotkey.Describe()}) — déjà utilisé ? Change-le via « Raccourci… ».";
+            StatusTextBlock.Text = Loc.Format("Status.HotkeyUnavailable", _config.Hotkey.Describe());
         }
 
         // Surveillance continue du presse-papiers via les notifications Windows.
@@ -238,9 +251,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (RegisterHotkey(handle, hk))
         {
             _config.Hotkey = hk;
-            StatusTextBlock.Text = _configService.Save(_config)
-                ? $"Raccourci défini : {hk.Describe()}."
-                : $"Raccourci défini : {hk.Describe()} — mais il ne sera pas conservé au prochain lancement.";
+            StatusTextBlock.Text = Loc.Format(_configService.Save(_config) ? "Status.HotkeySet" : "Status.HotkeySetNotSaved",
+                hk.Describe());
             return true;
         }
 
@@ -386,7 +398,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         InputTextBox.Text = text;
         InputTextBox.CaretIndex = text.Length;
-        StatusTextBlock.Text = "Texte du presse-papiers chargé automatiquement.";
+        StatusTextBlock.Text = Loc.Text("Status.ClipboardLoadedAuto");
     }
 
     // Appelée lorsqu'un second lancement de l'appli demande à réafficher l'instance existante.
@@ -401,8 +413,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     public void NotifySetupCompleted(bool isUpdate)
     {
         var text = isUpdate
-            ? $"Updated to version {AppInfo.Version}."
-            : $"Installed. Open it from any application with {_config.Hotkey.Describe()}.";
+            ? Loc.Format("Tray.Updated", AppInfo.Version)
+            : Loc.Format("Tray.Installed", _config.Hotkey.Describe());
         _notifyIcon.ShowBalloonTip(5000, AppInfo.Product, text, Forms.ToolTipIcon.Info);
     }
 
@@ -421,13 +433,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var input = InputTextBox.Text?.Trim();
         if (string.IsNullOrWhiteSpace(input))
         {
-            StatusTextBlock.Text = "No text to correct.";
+            StatusTextBlock.Text = Loc.Text("Status.NoTextToCorrect");
             return;
         }
 
         await RunAiAsync(() => _aiService.CorrectAsync(input, prompt),
-            $"Correcting via {_config.Provider}…",
-            $"Corrected via {_config.Provider}.");
+            Loc.Format("Status.Correcting", _config.Provider),
+            Loc.Format("Status.Corrected", _config.Provider));
     }
 
     // Exécute un appel IA puis le traitement commun à la correction et à la
@@ -448,9 +460,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
             if (AutoCopyCheckBox.IsChecked == true)
             {
-                StatusTextBlock.Text = _clipboardService.WritePlainText(finalText)
-                    ? $"{doneStatus} Result copied to the clipboard."
-                    : $"{doneStatus} Copy to the clipboard failed.";
+                var copyStatus = Loc.Text(_clipboardService.WritePlainText(finalText) ? "Status.ResultCopied" : "Status.CopyFailed");
+                StatusTextBlock.Text = $"{doneStatus} {copyStatus}";
             }
             else
             {
@@ -466,7 +477,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception ex)
         {
-            StatusTextBlock.Text = "API error: " + ex.Message;
+            StatusTextBlock.Text = Loc.Format("Status.ApiError", ex.Message);
             return false;
         }
         finally
@@ -475,8 +486,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    // Correction stricte avec l'option « Explain » : le texte corrigé arrive à droite
-    // comme d'habitude, et la zone source montre chaque faute au stylo rouge.
+    // Correction stricte expliquée (bouton « Correction ») : le texte corrigé arrive à
+    // droite comme d'habitude, et la zone source montre chaque faute au stylo rouge.
     private async Task RunExplainedCorrectionAsync(string prompt)
     {
         // Fins de ligne unifiées : le texte corrigé revient en \n, et la comparaison
@@ -484,7 +495,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var input = (InputTextBox.Text ?? string.Empty).Replace("\r\n", "\n").Trim();
         if (input.Length == 0)
         {
-            StatusTextBlock.Text = "No text to correct.";
+            StatusTextBlock.Text = Loc.Text("Status.NoTextToCorrect");
             return;
         }
 
@@ -507,42 +518,42 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                     return await _aiService.CorrectAsync(input, prompt);
                 }
             },
-            $"Correcting and explaining via {_config.Provider}…",
-            $"Corrected via {_config.Provider}.",
+            Loc.Format("Status.CorrectingAndExplaining", _config.Provider),
+            Loc.Format("Status.Corrected", _config.Provider),
             allowAutoPasteBack: false);
         if (!succeeded) return;
 
         if (AutoPasteBackCheckBox.IsChecked == true)
         {
-            StatusTextBlock.Text += " Auto paste-back is skipped with Explain.";
+            AppendStatus(Loc.Text("Status.AutoPasteBackSkipped"));
         }
 
         if (explained is null)
         {
-            StatusTextBlock.Text += " Explanations unavailable for this answer: plain correction shown.";
+            AppendStatus(Loc.Text("Status.ExplanationsUnavailable"));
             return;
         }
 
         var segments = TextDiff.Compare(input, explained.Corrected);
         if (segments is null)
         {
-            StatusTextBlock.Text += " Too many changes to annotate.";
+            AppendStatus(Loc.Text("Status.TooManyChanges"));
             return;
         }
 
         var count = AnnotatedView.Show(segments, explained.Errors);
         if (count == 0)
         {
-            StatusTextBlock.Text += " No errors found.";
+            AppendStatus(Loc.Text("Status.NoErrors"));
             return;
         }
 
         InputTextBox.Visibility = Visibility.Collapsed;
         AnnotatedView.Visibility = Visibility.Visible;
-        StatusTextBlock.Text += count == 1
-            ? " 1 error (red, fixed in green): hover it for the rule, click the text to edit it."
-            : $" {count} errors (red, fixed in green): hover them for the rule, click the text to edit it.";
+        AppendStatus(count == 1 ? Loc.Text("Status.OneError") : Loc.Format("Status.Errors", count));
     }
+
+    private void AppendStatus(string sentence) => StatusTextBlock.Text += " " + sentence;
 
     private void HideAnnotations()
     {
@@ -567,19 +578,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private void ExplainCheckBox_Changed(object sender, RoutedEventArgs e)
-    {
-        if (!IsLoaded) return;
-
-        _config.ExplainErrors = ExplainCheckBox.IsChecked == true;
-        _configService.Save(_config);
-
-        if (!_config.ExplainErrors)
-        {
-            HideAnnotations();
-        }
-    }
-
     private async void TranslateButton_Click(object sender, RoutedEventArgs e)
     {
         if (LanguageComboBox.SelectedItem is not string language) return;
@@ -589,7 +587,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var source = string.IsNullOrWhiteSpace(OutputTextBox.Text) ? InputTextBox.Text : OutputTextBox.Text;
         if (string.IsNullOrWhiteSpace(source))
         {
-            StatusTextBlock.Text = "No text to translate.";
+            StatusTextBlock.Text = Loc.Text("Status.NoTextToTranslate");
             return;
         }
 
@@ -600,8 +598,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             ? template.Replace("{language}", language, StringComparison.Ordinal)
             : $"{template}\nTarget language: {language}.";
         await RunAiAsync(() => _aiService.TranslateAsync(source.Trim(), instruction),
-            $"Translating into {language} via {_config.Provider}…",
-            $"Translated into {language} via {_config.Provider}.");
+            Loc.Format("Status.Translating", language, _config.Provider),
+            Loc.Format("Status.Translated", language, _config.Provider));
     }
 
     private void InitializeLanguageSelection()
@@ -663,14 +661,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _config.TranslationLanguages.Add(language);
             LanguageComboBox.Items.Add(language);
             LanguageComboBox.SelectedItem = language;
-            StatusTextBlock.Text = _configService.Save(_config)
-                ? $"{language} added to the list."
-                : $"{language} added, but it will not be kept after a restart.";
+            StatusTextBlock.Text = Loc.Format(_configService.Save(_config) ? "Status.LanguageAdded" : "Status.LanguageAddedNotSaved",
+                language);
         }
         else
         {
             LanguageComboBox.SelectedItem = existing;
-            StatusTextBlock.Text = $"{existing} is already in the list.";
+            StatusTextBlock.Text = Loc.Format("Status.LanguageAlreadyListed", existing);
         }
 
         HideAddLanguageBox();
@@ -702,9 +699,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         LanguageComboBox.Items.Remove(selected);
         LanguageComboBox.SelectedIndex = Math.Min(index, LanguageComboBox.Items.Count - 1);
 
-        StatusTextBlock.Text = _configService.Save(_config)
-            ? $"{selected} removed from the list."
-            : $"{selected} removed, but it will be back after a restart.";
+        StatusTextBlock.Text = Loc.Format(_configService.Save(_config) ? "Status.LanguageRemoved" : "Status.LanguageRemovedNotSaved",
+            selected);
         UpdateRemoveLanguageButton();
     }
 
@@ -719,7 +715,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ProfessionalButton.IsEnabled = !busy;
         CustomButton.IsEnabled = !busy;
         TranslateButton.IsEnabled = !busy;
-        ExplainCheckBox.IsEnabled = !busy;
+        ExplainedCorrectionButton.IsEnabled = !busy;
         PasteClipboardButton.IsEnabled = !busy;
         CopyResultButton.IsEnabled = !busy;
         PasteBackButton.IsEnabled = !busy;
@@ -733,19 +729,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         StatusTextBlock.Text = status;
     }
 
-    // Seul mode concerné par « Explain » : ses différences sont des fautes ponctuelles,
-    // alors qu'une reformulation changerait presque toutes les phrases.
     private async void StrictCorrectionButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (ExplainCheckBox.IsChecked == true)
-        {
-            await RunExplainedCorrectionAsync(_config.Prompts.StrictCorrection);
-        }
-        else
-        {
-            await RunPromptAsync(_config.Prompts.StrictCorrection);
-        }
-    }
+        => await RunPromptAsync(_config.Prompts.StrictCorrection);
+
+    // L'explication n'existe qu'en correction stricte : ses différences sont des fautes
+    // ponctuelles, alors qu'une reformulation changerait presque toutes les phrases.
+    private async void ExplainedCorrectionButton_Click(object sender, RoutedEventArgs e)
+        => await RunExplainedCorrectionAsync(_config.Prompts.StrictCorrection);
 
     private async void RewriteLightButton_Click(object sender, RoutedEventArgs e)
         => await RunPromptAsync(_config.Prompts.CorrectionAndRewrite);
@@ -759,7 +749,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void PasteClipboardButton_Click(object sender, RoutedEventArgs e)
     {
         InputTextBox.Text = _clipboardService.TryReadText();
-        StatusTextBlock.Text = "Texte chargé depuis le presse-papiers.";
+        StatusTextBlock.Text = Loc.Text("Status.ClipboardLoaded");
         InputTextBox.Focus();
     }
 
@@ -767,7 +757,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (string.IsNullOrWhiteSpace(OutputTextBox.Text))
         {
-            StatusTextBlock.Text = "Aucun résultat à copier.";
+            StatusTextBlock.Text = Loc.Text("Status.NoResultToCopy");
             return;
         }
 
@@ -776,7 +766,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             : _textTransformService.ToPlainUnicodeText(OutputTextBox.Text);
 
         _clipboardService.WritePlainText(text);
-        StatusTextBlock.Text = "Résultat copié dans le presse-papiers.";
+        StatusTextBlock.Text = Loc.Text("Status.ResultCopied");
     }
 
     private async void PasteBackButton_Click(object sender, RoutedEventArgs e)
@@ -789,7 +779,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception ex)
         {
-            StatusTextBlock.Text = "Impossible de recoller le texte : " + ex.Message;
+            StatusTextBlock.Text = Loc.Format("Status.PasteBackFailed", ex.Message);
         }
     }
 
@@ -797,7 +787,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (string.IsNullOrWhiteSpace(OutputTextBox.Text))
         {
-            StatusTextBlock.Text = "Aucun résultat à recoller.";
+            StatusTextBlock.Text = Loc.Text("Status.NoResultToPasteBack");
             return;
         }
 
@@ -814,24 +804,24 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             NativeMethods.SetForegroundWindow(_lastForegroundWindow);
             await Task.Delay(120);
             _clipboardService.SimulatePaste();
-            StatusTextBlock.Text = "Texte recollé dans l'application d'origine.";
+            StatusTextBlock.Text = Loc.Text("Status.PastedBack");
         }
         else
         {
-            StatusTextBlock.Text = "Fenêtre d'origine introuvable, mais le texte est dans le presse-papiers.";
+            StatusTextBlock.Text = Loc.Text("Status.OriginalWindowNotFound");
         }
     }
 
     private void ClearInputButton_Click(object sender, RoutedEventArgs e)
     {
         InputTextBox.Clear();
-        StatusTextBlock.Text = "Texte source vidé.";
+        StatusTextBlock.Text = Loc.Text("Status.SourceCleared");
     }
 
     private void ClearOutputButton_Click(object sender, RoutedEventArgs e)
     {
         OutputTextBox.Clear();
-        StatusTextBlock.Text = "Texte corrigé vidé.";
+        StatusTextBlock.Text = Loc.Text("Status.ResultCleared");
     }
 
     private void ProviderComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -844,8 +834,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (string.IsNullOrEmpty(selected)) return;
 
         _config.Provider = selected;
-        StatusTextBlock.Text = _configService.Save(_config)
-            ? $"Provider actif : {selected}."
-            : $"Provider actif : {selected} — mais la configuration n'a pas pu être enregistrée.";
+        StatusTextBlock.Text = Loc.Format(_configService.Save(_config) ? "Status.ProviderSelected" : "Status.ProviderNotSaved",
+            selected);
     }
 }

@@ -1,4 +1,5 @@
 using System.Windows;
+using AiTextCorrector.Localization;
 
 namespace AiTextCorrector.Setup;
 
@@ -17,13 +18,14 @@ public partial class SetupWindow : Wpf.Ui.Controls.FluentWindow
     {
         InitializeComponent();
 
-        HeadingText.Text = $"{AppInfo.Product} v{version} is not installed on this computer.";
+        Title = Loc.Format("Setup.Title", AppInfo.Product);
+        SetupTitleBar.Title = Title;
+        HeadingText.Text = Loc.Format("Setup.NotInstalled", AppInfo.Product, version);
         InstallPathText.Text = installDirectory;
 
         if (legacyInstallPath is not null)
         {
-            LegacyInstallText.Text = $"An older copy was found in {legacyInstallPath}. It will no longer be used; " +
-                                     "you can delete it (administrator rights required).";
+            LegacyInstallText.Text = Loc.Format("Setup.LegacyCopy", legacyInstallPath);
             LegacyInstallText.Visibility = Visibility.Visible;
         }
     }

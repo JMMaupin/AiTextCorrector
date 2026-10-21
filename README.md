@@ -56,8 +56,10 @@ select text  ->  press the shortcut  ->  click a correction mode  ->  paste back
   application, automatically or with one click.
 - **Plain text output**: no formatting is ever pasted. An optional ASCII mode strips accents and
   non-ASCII characters.
-- **Learn from your mistakes**: with the *Explain* option, a strict correction shows each error in
-  red in your text, followed by its correction in green, and explains the rule on hover.
+- **Learn from your mistakes**: the *Correction* button runs a strict correction that shows each
+  error in red in your text, followed by its correction in green, and explains the rule on hover.
+- **Interface in your language**: English and French are built in. Any other language is
+  translated once by the AI, then saved on your computer.
 - **Character-level undo** in the source box: `Ctrl+Z` goes back one keystroke at a time and also
   undoes text loaded by the app.
 - **Lives in the notification area** and can start with Windows.
@@ -131,31 +133,32 @@ You are ready: select some text anywhere, press the shortcut, and click a correc
    If nothing is selected, the app uses text you copied in the last 5 seconds, if any.
 3. Click a correction mode. The result appears in the **result** box (right) and, by default,
    is copied to the clipboard.
-4. Click **Recoller dans l'app** to paste the result back into the original application, or
-   enable **Recoller automatiquement** to do it without the extra click.
+4. Click **Paste back into the app** to paste the result back into the original application, or
+   enable **Paste back automatically** to do it without the extra click.
 
 You can also type or paste text directly into the source box.
 
 ### The main window
 
-The main window labels are currently in French. Here is what each control does:
+Labels below are those of the English interface; the [interface language](#language) is set in
+the settings. Here is what each control does:
 
 | Label | Action |
 | --- | --- |
 | **Provider** | AI provider used for the next correction or translation. |
-| **Copie auto après correction** | Copy each result to the clipboard (on by default). |
-| **Mode ASCII simple** | Remove accents and every non-ASCII character from the result. |
-| **Recoller automatiquement** | Paste each result back into the original application automatically. |
+| **Auto copy after correction** | Copy each result to the clipboard (on by default). |
+| **Plain ASCII mode** | Remove accents and every non-ASCII character from the result. |
+| **Paste back automatically** | Paste each result back into the original application automatically. |
 | Gear button | Open the [settings](#settings). |
-| **Coller depuis le presse-papiers** | Load the clipboard into the source box. |
-| **Vider** | Clear the box above which it sits. |
-| **Explain** | With **Correction stricte**, show each error in red and its correction in green in the source box, explained on hover (see [Explain](#explain-learn-from-your-mistakes)). Remembered between sessions. |
-| **Copier le résultat** | Copy the result to the clipboard. |
-| **Recoller dans l'app** | Paste the result into the application you came from. |
-| **Correction stricte** | Fix spelling, grammar and punctuation only, without rephrasing. |
-| **Correction + reformulation** | Fix, then lightly rephrase for a smoother text. |
-| **Version pro** | Fix, then rewrite in a professional, concise style. |
-| **Prompt perso** | Run your own custom prompt. |
+| **Paste from clipboard** | Load the clipboard into the source box. |
+| **Clear** | Clear the box above which it sits. |
+| **Correction** | Strict correction that also shows each error in red and its correction in green in the source box, explained on hover (see [Explain](#explain-learn-from-your-mistakes)). |
+| **Copy result** | Copy the result to the clipboard. |
+| **Paste back into the app** | Paste the result into the application you came from. |
+| **Strict correction** | Fix spelling, grammar and punctuation only, without rephrasing. |
+| **Correction + rewording** | Fix, then lightly rephrase for a smoother text. |
+| **Professional version** | Fix, then rewrite in a professional, concise style. |
+| **Custom prompt** | Run your own custom prompt. |
 | **Translate** | Translate the result into the language selected next to it. |
 
 The three check boxes apply to the current session and are reset to their defaults at each start.
@@ -165,7 +168,7 @@ stays French. Every prompt can be changed in [Settings > Prompts](#prompts).
 
 ### Explain: learn from your mistakes
 
-Check **Explain**, next to **Vider**, then click **Correction stricte**:
+Click **Correction**, next to **Clear** in the source box:
 
 - the corrected text appears on the right as usual;
 - the source box shows your text corrected like a teacher's pen: each wrong word in red,
@@ -175,9 +178,10 @@ Check **Explain**, next to **Vider**, then click **Correction stricte**:
 - click anywhere in the text to go back to editing it. Changing the text also removes the marks,
   since they would no longer match.
 
-The option only applies to **Correction stricte**: rewriting modes change almost every sentence,
-which would turn the whole text red. While it is on, **Recoller automatiquement** is skipped so
-that the window stays open for reading.
+The button always runs a strict correction: rewriting modes change almost every sentence, which
+would turn the whole text red. **Strict correction** gives the same correction without the marks.
+With **Correction**, **Paste back automatically** is skipped so that the window stays open for
+reading.
 
 How it works: the AI returns the corrected text and the list of errors with their explanations.
 The app then compares your text with the corrected one word by word to place each mark exactly,
@@ -206,20 +210,20 @@ correction and says so in the status bar.
 ### Undo in the source box
 
 - `Ctrl+Z` undoes one change at a time: one typed character, one deletion, one paste. Text
-  loaded by the shortcut and the **Vider** button can be undone too.
+  loaded by the shortcut and the **Clear** button can be undone too.
 - `Ctrl+Y` or `Ctrl+Shift+Z` redoes.
 
 ### Notification area and startup
 
 - Closing (✕) or minimizing the window hides it in the notification area; the shortcut keeps
   working.
-- Double-click the tray icon to show the window. Its menu offers **Ouvrir** (open),
-  **Run with Windows** (start at logon) and **Quitter** (quit the application).
+- Double-click the tray icon to show the window. Its menu offers **Open**,
+  **Run with Windows** (start at logon) and **Quit** (quit the application).
 - Starting the application a second time shows the window of the instance already running.
 
 ## Settings
 
-The gear button opens the settings window. Its three tabs are saved together with **Save**;
+The gear button opens the settings window. Its four tabs are saved together with **Save**;
 **Cancel** or `Esc` discards every change. If a tab contains an invalid value, **Save** brings
 that tab to the front and explains the problem; nothing is written until it is fixed.
 
@@ -244,6 +248,29 @@ correction modes and **Translate**. **Reset** restores the default text of one p
 translation prompt, `{language}` is replaced by the selected target language; if you remove it,
 the target language is appended automatically.
 
+### Language
+
+Language of the windows and messages. **English** and **French** are built in. At the first
+start, the app uses French if Windows is in French, and English otherwise. The new language
+applies as soon as you click **Save**, without restarting.
+
+To use another language:
+
+1. Click **+** next to the list, type the first letters of the language as for
+   [translation](#translation), then press `Enter` or click a suggestion.
+2. Check the request, then click **Translate**. The app sends the English phrases of the
+   interface (about 140 short texts, never your own text) to the provider selected in the main
+   window, in a few requests, and shows the progress.
+3. The language is added to the list and selected. Click **Save** to switch to it. It is reused
+   at every start, with no further AI call.
+
+Each translation is saved in `%APPDATA%\AiTextCorrector\Languages\<Language>.json`, with the
+English source of every phrase. A phrase the AI did not translate correctly, for example one that
+lost a `{0}` placeholder, stays in English. After an update that adds or changes phrases, the tab
+shows how many are missing and a **Translate missing phrases** button, which translates only
+those. You can fix a phrase by editing the file while the application is closed; deleting the
+file removes the language from the list.
+
 ## AI providers and models
 
 | Provider | Default model | Model field in the configuration | Environment variable for the key |
@@ -264,7 +291,7 @@ the target language is appended automatically.
 
 Settings are stored in `%APPDATA%\AiTextCorrector\appsettings.json`. The file is created at the
 first start and rewritten when you change a setting in the app, so **edit it only while the
-application is closed** (use *Quitter* in the tray menu).
+application is closed** (use *Quit* in the tray menu).
 
 ```json
 {
@@ -275,6 +302,7 @@ application is closed** (use *Quitter* in the tray menu).
   "GroqModel": "openai/gpt-oss-120b",
   "TranslationLanguages": [ "English", "Spanish" ],
   "TranslationLanguage": "English",
+  "UiLanguage": "French",
   "Hotkey": { "Ctrl": true, "Shift": true, "Alt": false, "Win": false, "Key": "Space" },
   "Prompts": {
     "StrictCorrection": "Fix only spelling, grammar, punctuation and agreement errors. ...",
@@ -292,6 +320,7 @@ application is closed** (use *Quitter* in the tray menu).
 | `Model`, `AnthropicModel`, `GlmModel`, `GroqModel` | Model used for each provider. |
 | `TranslationLanguages` | Target languages offered next to **Translate**, in display order. |
 | `TranslationLanguage` | Last target language used. |
+| `UiLanguage` | [Interface language](#language), by its English name: `English`, `French`, or a language translated on this computer. |
 | `Hotkey` | Global shortcut. `Key` is a [WPF `Key` name](https://learn.microsoft.com/dotnet/api/system.windows.input.key) such as `Space`, `K` or `F2`. |
 | `Prompts` | Instruction of each button, also editable in **Settings > Prompts**. |
 
@@ -301,13 +330,15 @@ API keys are not stored in this file (see below).
 
 - **Text**: when you click a correction or translation button, the text and the matching prompt
   are sent to the API of the selected provider, and nothing else. The application has no
-  telemetry, no account and no other network access.
+  telemetry, no account and no other network access. Translating the interface into a new
+  language sends only the English phrases of the interface, never your text.
 - **API keys** are stored in the Windows registry of your account, under
   `HKEY_CURRENT_USER\Software\AiTextCorrector` (values `OpenAiApiKey`, `AnthropicApiKey`,
   `GlmApiKey`, `GroqApiKey`). They are **not encrypted**: any program running under your account
   can read them. An environment variable listed [above](#ai-providers-and-models), when defined,
   takes precedence over the registry.
-- **Settings** are in `%APPDATA%\AiTextCorrector\appsettings.json`.
+- **Settings** are in `%APPDATA%\AiTextCorrector\appsettings.json`, and interface translations in
+  `%APPDATA%\AiTextCorrector\Languages`.
 - **Installed files** are in `%LOCALAPPDATA%\Programs\AiTextCorrector`.
 
 ## Troubleshooting
@@ -394,12 +425,14 @@ AiTextCorrector/
   App.xaml(.cs)              Startup, single instance, install and update check
   MainWindow.xaml(.cs)       Main window, global shortcut, clipboard, actions
   AppInfo.cs                 Product name and version, read from the project file
-  Controls/                  Language search box, character-level undo
+  Controls/                  Language search box, character-level undo, annotated text
   Interop/                   Win32 calls: shortcut, keyboard input, Start menu shortcut
+  Localization/              Interface texts: English reference table, built-in French,
+                             AI translations saved on the computer
   Models/AppConfig.cs        Configuration model and default prompts
   Services/                  AI providers, clipboard, selection capture, configuration,
                              API key storage, language catalogue, start with Windows
-  Settings/                  Settings window and its three tabs
+  Settings/                  Settings window and its four tabs
   Setup/                     Self-installation, update and uninstallation
   Properties/PublishProfiles/Portable.pubxml   Single-file publish profile
 ```

@@ -1,0 +1,47 @@
+<UserControl x:Class="AiTextCorrector.Settings.LanguageSettingsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:controls="clr-namespace:AiTextCorrector.Controls"
+             xmlns:loc="clr-namespace:AiTextCorrector.Localization">
+    <StackPanel>
+        <ui:TextBlock Text="{loc:Text Language.Intro}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+        <!-- Même principe que la liste des langues cibles de la fenêtre principale :
+             la recherche prend la place de la liste le temps de l'ajout. -->
+        <DockPanel>
+            <ui:Button Name="AddLanguageButton" DockPanel.Dock="Right" Icon="{ui:SymbolIcon Add24}" Appearance="Secondary"
+                       Margin="8,0,0,0" VerticalAlignment="Center" ToolTip="{loc:Text Language.AddTooltip}"
+                       Click="AddLanguageButton_Click"/>
+            <Grid>
+                <ComboBox Name="LanguageComboBox" SelectionChanged="LanguageComboBox_SelectionChanged"/>
+                <controls:LanguageSuggestBox x:Name="AddLanguageBox" Visibility="Collapsed"
+                                             LanguageSubmitted="AddLanguageBox_LanguageSubmitted" Cancelled="AddLanguageBox_Cancelled"/>
+            </Grid>
+        </DockPanel>
+
+        <!-- Confirmation avant tout appel à l'IA : il est payant et prend du temps. -->
+        <ui:Card Name="ConfirmCard" Padding="12" Margin="0,12,0,0" Visibility="Collapsed">
+            <StackPanel>
+                <ui:TextBlock Name="ConfirmTitleText" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <ui:TextBlock Name="ConfirmDetailText" Appearance="Secondary" TextWrapping="Wrap" Margin="0,4,0,12"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <ui:Button Content="{loc:Text Settings.Cancel}" MinWidth="90" Margin="0,0,8,0" Click="CancelTranslation_Click"/>
+                    <ui:Button Content="{loc:Text Language.Translate}" Icon="{ui:SymbolIcon Translate24}" Appearance="Primary"
+                               MinWidth="110" Click="ConfirmTranslation_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </ui:Card>
+
+        <StackPanel Name="ProgressPanel" Margin="0,12,0,0" Visibility="Collapsed">
+            <ui:TextBlock Name="ProgressText" TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <ProgressBar Name="TranslationProgress" Height="4" Minimum="0"/>
+        </StackPanel>
+
+        <ui:TextBlock Name="NoticeText" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed"/>
+        <ui:Button Name="TranslateMissingButton" Content="{loc:Text Language.TranslateMissing}" Icon="{ui:SymbolIcon Translate24}"
+                   Margin="0,8,0,0" Visibility="Collapsed" Click="TranslateMissing_Click"/>
+
+        <ui:TextBlock Text="{loc:Text Language.Note}" Appearance="Secondary" TextWrapping="Wrap" Margin="0,20,0,0"/>
+    </StackPanel>
+</UserControl>

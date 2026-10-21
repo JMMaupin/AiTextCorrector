@@ -3,6 +3,8 @@ using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
+using AiTextCorrector.Localization;
+using AiTextCorrector.Services;
 using AiTextCorrector.Setup;
 
 namespace AiTextCorrector;
@@ -33,6 +35,10 @@ public partial class App : Application
         base.OnStartup(e);
         Wpf.Ui.Appearance.ApplicationThemeManager.ApplySystemTheme();
 
+        // Dès maintenant : l'installeur et la désinstallation parlent déjà la langue
+        // choisie, s'il en existe une.
+        Localizer.Instance.SetLanguage(ConfigService.PeekUiLanguage());
+
         // Installation, mise à jour, désinstallation : AVANT le contrôle d'instance
         // unique. L'exe lancé n'est pas forcément l'exe installé, et doit pouvoir
         // fermer l'instance en cours pour la remplacer.
@@ -46,7 +52,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            ReportError(ex, "Installation check failed.");
+            ReportError(ex, Loc.Text("App.InstallCheckFailed"));
         }
 
         _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out bool createdNew);
@@ -103,7 +109,7 @@ public partial class App : Application
         {
             // Échec d'initialisation : mieux vaut un message explicite qu'un
             // processus fantôme sans fenêtre ni icône de notification.
-            ReportError(ex, "Impossible de démarrer AI Text Corrector.");
+            ReportError(ex, Loc.Format("App.StartFailed", AppInfo.Product));
             Shutdown();
         }
     }
@@ -113,14 +119,14 @@ public partial class App : Application
         // On signale l'erreur et on garde l'application en vie : une exception dans
         // un gestionnaire d'événement ne doit pas faire disparaître l'icône systray.
         e.Handled = true;
-        ReportError(e.Exception, "Une erreur inattendue s'est produite.");
+        ReportError(e.Exception, Loc.Text("App.UnexpectedError"));
     }
 
     private static void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
         if (e.ExceptionObject is Exception ex)
         {
-            ReportError(ex, "Une erreur inattendue s'est produite.");
+            ReportError(ex, Loc.Text("App.UnexpectedError"));
         }
     }
 

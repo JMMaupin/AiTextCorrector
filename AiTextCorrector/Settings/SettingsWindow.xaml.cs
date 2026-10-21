@@ -1,13 +1,16 @@
 using System;
 using System.Windows;
+using AiTextCorrector.Localization;
 using AiTextCorrector.Models;
 using AiTextCorrector.Services;
 
 namespace AiTextCorrector.Settings;
 
 /// <summary>
-/// Réglages regroupés en onglets (raccourci, clés API, prompts), enregistrés
+/// Réglages regroupés en onglets (raccourci, clés API, prompts, langue), enregistrés
 /// ensemble par un seul bouton : rien n'est écrit tant qu'un onglet est invalide.
+/// Seule exception, une traduction de l'interface est enregistrée dès qu'elle est
+/// faite : elle a coûté un appel à l'IA, et ne change rien tant qu'elle n'est pas choisie.
 /// </summary>
 public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 {
@@ -16,7 +19,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     private readonly Func<HotkeyConfig, bool> _tryApplyHotkey;
 
     public SettingsWindow(AppConfig config, ConfigService configService, ApiKeyStore keyStore,
-                          Func<HotkeyConfig, bool> tryApplyHotkey)
+                          MultiProviderCorrectionService aiService, Func<HotkeyConfig, bool> tryApplyHotkey)
     {
         InitializeComponent();
         _config = config;
@@ -26,10 +29,16 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         HotkeyPanel.Load(config.Hotkey);
         KeysPanel.Load(keyStore);
         PromptPanel.Load(config.Prompts);
+        LanguagePanel.Load(config, keyStore, aiService);
     }
 
     /// <summary>Faux si la configuration n'a pas pu être écrite sur le disque.</summary>
     public bool ConfigSaved { get; private set; }
+
+    // Pas d'enregistrement pendant une traduction : la langue choisie serait celle
+    // d'avant, et la nouvelle n'apparaîtrait qu'à la prochaine ouverture.
+    private void LanguagePanel_BusyChanged(object? sender, EventArgs e) =>
+        SaveButton.IsEnabled = !LanguagePanel.IsBusy;
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
@@ -56,7 +65,12 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
         KeysPanel.Apply();
         PromptPanel.StoreIn(_config.Prompts);
+        _config.UiLanguage = LanguagePanel.Selected;
         ConfigSaved = _configService.Save(_config);
+
+        // Toujours réappliquée : une traduction complétée dans l'onglet doit apparaître
+        // même si la langue n'a pas changé.
+        Localizer.Instance.SetLanguage(_config.UiLanguage);
 
         DialogResult = true;
     }

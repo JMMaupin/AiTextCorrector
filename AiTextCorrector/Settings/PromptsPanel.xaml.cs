@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using AiTextCorrector.Localization;
 using AiTextCorrector.Models;
 
 namespace AiTextCorrector.Settings;
@@ -61,15 +62,17 @@ public partial class PromptsPanel : UserControl
         var defaults = new PromptSet();
         _entries = new List<PromptEntry>
         {
-            new("« Correction stricte »", prompts.StrictCorrection, defaults.StrictCorrection, (p, v) => p.StrictCorrection = v),
-            new("« Correction + reformulation »", prompts.CorrectionAndRewrite, defaults.CorrectionAndRewrite, (p, v) => p.CorrectionAndRewrite = v),
-            new("« Version pro »", prompts.ProfessionalStyle, defaults.ProfessionalStyle, (p, v) => p.ProfessionalStyle = v),
-            new("« Prompt perso »", prompts.CustomPrompt, defaults.CustomPrompt, (p, v) => p.CustomPrompt = v),
-            new("« Translate »", prompts.Translation, defaults.Translation, (p, v) => p.Translation = v,
-                hint: "{language} is replaced by the language chosen next to the Translate button."),
+            new(ButtonLabel("Main.StrictCorrection"), prompts.StrictCorrection, defaults.StrictCorrection, (p, v) => p.StrictCorrection = v),
+            new(ButtonLabel("Main.CorrectionAndRewrite"), prompts.CorrectionAndRewrite, defaults.CorrectionAndRewrite, (p, v) => p.CorrectionAndRewrite = v),
+            new(ButtonLabel("Main.ProfessionalStyle"), prompts.ProfessionalStyle, defaults.ProfessionalStyle, (p, v) => p.ProfessionalStyle = v),
+            new(ButtonLabel("Main.CustomPrompt"), prompts.CustomPrompt, defaults.CustomPrompt, (p, v) => p.CustomPrompt = v),
+            new(ButtonLabel("Main.Translate"), prompts.Translation, defaults.Translation, (p, v) => p.Translation = v,
+                hint: Loc.Text("Prompts.TranslationHint")),
         };
         PromptList.ItemsSource = _entries;
     }
+
+    private static string ButtonLabel(string buttonKey) => Loc.Format("Prompts.ButtonLabel", Loc.Text(buttonKey));
 
     /// <summary>
     /// Vrai si tous les prompts sont renseignés. Sinon, signale le premier vide :
@@ -78,7 +81,7 @@ public partial class PromptsPanel : UserControl
     public bool Validate()
     {
         var empty = _entries.FirstOrDefault(e => string.IsNullOrWhiteSpace(e.Text));
-        ErrorTextBlock.Text = empty is null ? string.Empty : $"The prompt for {empty.Label} is empty. Type an instruction or click Reset.";
+        ErrorTextBlock.Text = empty is null ? string.Empty : Loc.Format("Prompts.Empty", empty.Label, Loc.Text("Prompts.Reset"));
         ErrorTextBlock.Visibility = empty is null ? Visibility.Collapsed : Visibility.Visible;
         return empty is null;
     }

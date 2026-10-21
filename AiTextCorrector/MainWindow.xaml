@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:controls="clr-namespace:AiTextCorrector.Controls"
+        xmlns:loc="clr-namespace:AiTextCorrector.Localization"
         Title="AI Text Corrector"
         Icon="pack://application:,,,/Resources/AICorrector.ico"
         Height="650"
@@ -26,6 +27,7 @@
              ne servent qu'au concepteur visuel et volontairement ne portent pas de version. -->
         <ui:TitleBar x:Name="AppTitleBar" Grid.Row="0" Title="AI Text Corrector"/>
 
+        <!-- Textes de l'interface : {loc:Text clé}, voir Localization/EnglishStrings.cs. -->
         <Grid Grid.Row="1" Margin="16,8,16,16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -40,17 +42,17 @@
                 <DockPanel>
                     <ui:Button Name="SettingsButton" DockPanel.Dock="Right" Appearance="Secondary"
                                Width="44" Height="44" Padding="0" Margin="12,0,0,0" VerticalAlignment="Center"
-                               ToolTip="Settings: shortcut, API keys, prompts" Click="SettingsButton_Click">
+                               ToolTip="{loc:Text Main.SettingsTooltip}" Click="SettingsButton_Click">
                         <!-- En contenu et non en Icon : le modèle de bouton WPF-UI
                              impose sa propre taille à l'icône. -->
                         <ui:SymbolIcon Symbol="Settings24" FontSize="26"/>
                     </ui:Button>
                     <WrapPanel VerticalAlignment="Center">
-                        <ui:TextBlock Text="Provider:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ui:TextBlock Text="{loc:Text Main.Provider}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <ComboBox Name="ProviderComboBox" Width="160" Margin="0,0,18,0" VerticalAlignment="Center" SelectionChanged="ProviderComboBox_SelectionChanged"/>
-                        <CheckBox Name="AutoCopyCheckBox" Content="Copie auto après correction" IsChecked="True" Margin="0,0,20,0" VerticalAlignment="Center"/>
-                        <CheckBox Name="AsciiOnlyCheckBox" Content="Mode ASCII simple" Margin="0,0,20,0" VerticalAlignment="Center"/>
-                        <CheckBox Name="AutoPasteBackCheckBox" Content="Recoller automatiquement" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                        <CheckBox Name="AutoCopyCheckBox" Content="{loc:Text Main.AutoCopy}" IsChecked="True" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                        <CheckBox Name="AsciiOnlyCheckBox" Content="{loc:Text Main.AsciiOnly}" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                        <CheckBox Name="AutoPasteBackCheckBox" Content="{loc:Text Main.AutoPasteBack}" Margin="0,0,20,0" VerticalAlignment="Center"/>
                     </WrapPanel>
                 </DockPanel>
             </ui:Card>
@@ -61,61 +63,62 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <GroupBox Header="Texte source" Padding="8" Margin="0,0,6,0">
+                <GroupBox Header="{loc:Text Main.SourceText}" Padding="8" Margin="0,0,6,0">
                     <DockPanel>
                         <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                            <ui:Button Name="PasteClipboardButton" Content="Coller depuis le presse-papiers" MinWidth="220" Margin="0,0,8,0" Click="PasteClipboardButton_Click"/>
-                            <ui:Button Name="ClearInputButton" Content="Vider" MinWidth="90" Click="ClearInputButton_Click"/>
-                            <CheckBox Name="ExplainCheckBox" Content="Explain" Margin="16,0,0,0" VerticalAlignment="Center"
-                                      ToolTip="With « Correction stricte », show each error in red and its correction in green here, with the rule on hover"
-                                      Checked="ExplainCheckBox_Changed" Unchecked="ExplainCheckBox_Changed"/>
+                            <ui:Button Name="PasteClipboardButton" Content="{loc:Text Main.PasteFromClipboard}" MinWidth="220" Margin="0,0,8,0" Click="PasteClipboardButton_Click"/>
+                            <ui:Button Name="ClearInputButton" Content="{loc:Text Main.Clear}" MinWidth="90" Click="ClearInputButton_Click"/>
+                            <ui:Button Name="ExplainedCorrectionButton" Content="{loc:Text Main.ExplainedCorrection}" Appearance="Primary" MinWidth="110" Margin="16,0,0,0"
+                                       ToolTip="{loc:Text Main.ExplainedCorrectionTooltip}"
+                                       Click="ExplainedCorrectionButton_Click"/>
                         </WrapPanel>
                         <!-- La vue annotée prend la place de la zone de saisie le temps de la
                              lecture ; un clic dedans revient à l'édition. -->
                         <Grid>
                             <ui:TextBox Name="InputTextBox" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                                        TextWrapping="Wrap" FontSize="14" PlaceholderText="Tape ou colle ton texte ici" ToolTip="Tape ou colle ton texte ici"/>
+                                        TextWrapping="Wrap" FontSize="14" PlaceholderText="{loc:Text Main.InputPlaceholder}" ToolTip="{loc:Text Main.InputPlaceholder}"/>
                             <controls:AnnotatedTextView x:Name="AnnotatedView" Visibility="Collapsed" EditRequested="AnnotatedView_EditRequested"/>
                         </Grid>
                     </DockPanel>
                 </GroupBox>
 
-                <GroupBox Grid.Column="1" Header="Texte corrigé" Padding="8" Margin="6,0,0,0">
+                <GroupBox Grid.Column="1" Header="{loc:Text Main.CorrectedText}" Padding="8" Margin="6,0,0,0">
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-                            <ui:Button Name="CopyResultButton" Content="Copier le résultat" MinWidth="150" Margin="0,0,8,0" Click="CopyResultButton_Click"/>
-                            <ui:Button Name="PasteBackButton" Content="Recoller dans l'app" MinWidth="150" Margin="0,0,8,0" Click="PasteBackButton_Click"/>
-                            <ui:Button Name="ClearOutputButton" Content="Vider" MinWidth="90" Click="ClearOutputButton_Click"/>
+                            <ui:Button Name="CopyResultButton" Content="{loc:Text Main.CopyResult}" MinWidth="150" Margin="0,0,8,0" Click="CopyResultButton_Click"/>
+                            <ui:Button Name="PasteBackButton" Content="{loc:Text Main.PasteBack}" MinWidth="150" Margin="0,0,8,0" Click="PasteBackButton_Click"/>
+                            <ui:Button Name="ClearOutputButton" Content="{loc:Text Main.Clear}" MinWidth="90" Click="ClearOutputButton_Click"/>
                         </StackPanel>
                         <ui:TextBox Name="OutputTextBox" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                                    TextWrapping="Wrap" FontSize="14" PlaceholderText="Le texte corrigé apparaîtra ici"/>
+                                    TextWrapping="Wrap" FontSize="14" PlaceholderText="{loc:Text Main.OutputPlaceholder}"/>
                     </DockPanel>
                 </GroupBox>
             </Grid>
 
             <WrapPanel Grid.Row="2" Margin="0,12,0,0">
-                <ui:Button Name="StrictCorrectionButton" Content="Correction stricte" Appearance="Primary" MinWidth="150" Margin="0,0,8,0" Click="StrictCorrectionButton_Click"/>
-                <ui:Button Name="RewriteLightButton" Content="Correction + reformulation" Appearance="Primary" MinWidth="210" Margin="0,0,8,0" Click="RewriteLightButton_Click"/>
-                <ui:Button Name="ProfessionalButton" Content="Version pro" Appearance="Primary" MinWidth="120" Margin="0,0,8,0" Click="ProfessionalButton_Click"/>
-                <ui:Button Name="CustomButton" Content="Prompt perso" Appearance="Primary" MinWidth="120" Margin="0,0,24,0" Click="CustomButton_Click"/>
+                <ui:Button Name="StrictCorrectionButton" Content="{loc:Text Main.StrictCorrection}" Appearance="Primary" MinWidth="150" Margin="0,0,8,0" Click="StrictCorrectionButton_Click"/>
+                <ui:Button Name="RewriteLightButton" Content="{loc:Text Main.CorrectionAndRewrite}" Appearance="Primary" MinWidth="210" Margin="0,0,8,0" Click="RewriteLightButton_Click"/>
+                <ui:Button Name="ProfessionalButton" Content="{loc:Text Main.ProfessionalStyle}" Appearance="Primary" MinWidth="120" Margin="0,0,8,0" Click="ProfessionalButton_Click"/>
+                <ui:Button Name="CustomButton" Content="{loc:Text Main.CustomPrompt}" Appearance="Primary" MinWidth="120" Margin="0,0,24,0" Click="CustomButton_Click"/>
 
                 <!-- Traduction du texte corrigé vers la langue choisie. -->
-                <ui:Button Name="TranslateButton" Content="Translate" Icon="{ui:SymbolIcon Translate24}" Appearance="Primary" MinWidth="120" Margin="0,0,8,0"
-                           ToolTip="Translate the corrected text into the selected language" Click="TranslateButton_Click"/>
+                <ui:Button Name="TranslateButton" Content="{loc:Text Main.Translate}" Icon="{ui:SymbolIcon Translate24}" Appearance="Primary" MinWidth="120" Margin="0,0,8,0"
+                           ToolTip="{loc:Text Main.TranslateTooltip}" Click="TranslateButton_Click"/>
                 <!-- La saisie d'une nouvelle langue prend la place de la liste, le temps de
                      l'ajout : la rangée ne bouge pas et ne passe pas à la ligne. -->
                 <Grid Width="200" Margin="0,0,8,0" VerticalAlignment="Center">
-                    <ComboBox Name="LanguageComboBox" ToolTip="Target language" SelectionChanged="LanguageComboBox_SelectionChanged"/>
+                    <ComboBox Name="LanguageComboBox" ToolTip="{loc:Text Main.TargetLanguageTooltip}" SelectionChanged="LanguageComboBox_SelectionChanged"/>
                     <controls:LanguageSuggestBox x:Name="AddLanguageBox" Visibility="Collapsed"
                                                  LanguageSubmitted="AddLanguageBox_LanguageSubmitted" Cancelled="AddLanguageBox_Cancelled"/>
                 </Grid>
                 <ui:Button Name="AddLanguageButton" Icon="{ui:SymbolIcon Add24}" Appearance="Secondary" Margin="0,0,8,0" VerticalAlignment="Center"
-                           ToolTip="Add a language" Click="AddLanguageButton_Click"/>
+                           ToolTip="{loc:Text Main.AddLanguageTooltip}" Click="AddLanguageButton_Click"/>
                 <ui:Button Name="RemoveLanguageButton" Icon="{ui:SymbolIcon Delete24}" Appearance="Secondary" VerticalAlignment="Center"
-                           ToolTip="Remove the selected language from the list" Click="RemoveLanguageButton_Click"/>
+                           ToolTip="{loc:Text Main.RemoveLanguageTooltip}" Click="RemoveLanguageButton_Click"/>
             </WrapPanel>
 
-            <ui:TextBlock Name="StatusTextBlock" Grid.Row="3" Text="Prêt"
+            <!-- Liaison remplacée par le premier message de la barre d'état. -->
+            <ui:TextBlock Name="StatusTextBlock" Grid.Row="3" Text="{loc:Text Status.Ready}"
                           Appearance="Secondary" Margin="0,10,0,0" TextWrapping="Wrap"/>
         </Grid>
     </Grid>

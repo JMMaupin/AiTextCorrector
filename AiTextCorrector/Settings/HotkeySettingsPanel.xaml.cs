@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using AiTextCorrector.Interop;
+using AiTextCorrector.Localization;
 using AiTextCorrector.Models;
 
 namespace AiTextCorrector.Settings;
@@ -52,7 +53,7 @@ public partial class HotkeySettingsPanel : UserControl
     public void MarkUnavailable()
     {
         _isValid = false;
-        ShowStatus(false, "✗ Already used by another application or reserved by Windows. Choose another combination.");
+        ShowStatus(false, Loc.Text("Hotkey.Unavailable"));
     }
 
     private void CaptureBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -114,14 +115,12 @@ public partial class HotkeySettingsPanel : UserControl
         if (!_ctrl && !_shift && !_alt && !_win)
         {
             _isValid = false;
-            ShowStatus(false, "✗ Add at least one modifier: Ctrl, Shift, Alt or Win.");
+            ShowStatus(false, Loc.Text("Hotkey.NeedsModifier"));
             return;
         }
 
         _isValid = ProbeAvailable();
-        ShowStatus(_isValid, _isValid
-            ? "✓ Available"
-            : "✗ Already used by another application or reserved by Windows. Choose another combination.");
+        ShowStatus(_isValid, Loc.Text(_isValid ? "Hotkey.Available" : "Hotkey.Unavailable"));
     }
 
     private bool IsSameAsCurrent() =>
