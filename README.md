@@ -380,9 +380,10 @@ dotnet build AiTextCorrector.sln
 dotnet run --project AiTextCorrector
 ```
 
-Development builds (`dotnet run`, `bin\Debug`, `bin\Release`) never show the installation
-window: only the published single-file executable installs itself. They use the same settings
-and API keys as the installed application.
+Development builds (`dotnet build`, `dotnet run`, Visual Studio) go to `AiTextCorrector\obj\Dev`,
+so that `bin` only holds the published executable. They never show the installation window: only
+the published single-file executable installs itself. They use the same settings and API keys as
+the installed application.
 
 The application is a WPF (.NET 8) program using [WPF-UI](https://github.com/lepoco/wpfui) for
 the Fluent design, and the official OpenAI and Anthropic .NET SDKs.

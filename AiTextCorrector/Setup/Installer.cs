@@ -42,7 +42,7 @@ internal static class Installer
 
     /// <summary>
     /// Vrai pour l'exe publié (fichier unique), faux pour les builds de développement
-    /// lancés depuis bin\, où l'assembly .dll est posée à côté de l'exe : ceux-là ne
+    /// lancés depuis obj\Dev, où l'assembly .dll est posée à côté de l'exe : ceux-là ne
     /// doivent jamais proposer d'installation.
     /// </summary>
     public static bool IsPublishedExecutable =>

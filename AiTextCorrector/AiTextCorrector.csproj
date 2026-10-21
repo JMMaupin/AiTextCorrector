@@ -7,6 +7,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
+    <!-- Builds de développement (Visual Studio, dotnet build / run) rangés dans
+         obj\Dev et non dans bin\Debug ou bin\Release : bin\ ne contient plus que
+         bin\Publish\Portable, le seul exe à tester avant une release. Un exe de
+         bin\Debug affichait le numéro de la dernière release avec un code plus
+         récent, et l'on ne savait plus lequel on lançait. -->
+    <BaseOutputPath>obj\Dev\</BaseOutputPath>
+
     <!-- Icône gravée dans le fichier .exe (Explorateur, barre des tâches, Alt+Tab). -->
     <ApplicationIcon>Resources\AICorrector.ico</ApplicationIcon>
 
