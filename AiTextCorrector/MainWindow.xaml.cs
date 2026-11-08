@@ -76,6 +76,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
         StateChanged += MainWindow_StateChanged;
+        // Clés en clair laissées par une version ≤ 1.5.0 : chiffrées par DPAPI.
+        _keyStore.MigratePlaintextKeys();
         InitializeProviderSelection();
         InitializeLanguageSelection();
 

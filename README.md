@@ -334,8 +334,11 @@ API keys are not stored in this file (see below).
   language sends only the English phrases of the interface, never your text.
 - **API keys** are stored in the Windows registry of your account, under
   `HKEY_CURRENT_USER\Software\AiTextCorrector` (values `OpenAiApiKey`, `AnthropicApiKey`,
-  `GlmApiKey`, `GroqApiKey`). They are **not encrypted**: any program running under your account
-  can read them. An environment variable listed [above](#ai-providers-and-models), when defined,
+  `GlmApiKey`, `GroqApiKey`). They are **encrypted with Windows DPAPI**, tied to your Windows
+  account: a copy or export of the registry does not reveal them, and they cannot be read from
+  another account or another computer (you then have to enter them again). DPAPI does not protect
+  them from a program running in your own session. Keys saved in plain text by version 1.5.0 or
+  earlier are encrypted the first time the application starts. An environment variable listed [above](#ai-providers-and-models), when defined,
   takes precedence over the registry.
 - **Settings** are in `%APPDATA%\AiTextCorrector\appsettings.json`, and interface translations in
   `%APPDATA%\AiTextCorrector\Languages`.
