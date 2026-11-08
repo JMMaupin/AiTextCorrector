@@ -29,7 +29,7 @@
          - release.cmd : +0.0.1 pour une release de correctifs, +0.1.0 pour une release
            avec des nouveautés, +1.0.0 pour un gros changement (dont l'UI principale).
          Pas de modification à la main, sauf cas particulier. -->
-    <Version>1.5.1</Version>
+    <Version>1.6.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
